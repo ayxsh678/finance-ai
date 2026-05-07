@@ -439,7 +439,7 @@ function CompareTable({ data, ticker_a, ticker_b }) {
     { label: "5D Change", a: fmtPct(stockA.five_day_change),b: fmtPct(stockB.five_day_change)},
     { label: "Mkt Cap",   a: fmt(stockA.market_cap),       b: fmt(stockB.market_cap)       },
     { label: "P/E",       a: fmt(stockA.pe_ratio),         b: fmt(stockB.pe_ratio)         },
-    { label: "EPS",       a: fmt(earnA.eps_actual),        b: fmt(earnB.eps_actual)        },
+    { label: "EPS",       a: fmt(stockA.eps_actual ?? earnA.eps_actual), b: fmt(stockB.eps_actual ?? earnB.eps_actual) },
     { label: "52W High",  a: fmt(stockA.week52_high),      b: fmt(stockB.week52_high)      },
     { label: "52W Low",   a: fmt(stockA.week52_low),       b: fmt(stockB.week52_low)       },
     { label: "Rel Vol",   a: fmt(stockA.rel_volume),       b: fmt(stockB.rel_volume)       },
