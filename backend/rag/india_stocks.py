@@ -141,6 +141,16 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
             round(latest_volume / avg_volume_30d, 2)
             if avg_volume_30d and avg_volume_30d > 0 and latest_volume else None
         )
+
+        # Final fallback: NSE quote API has live totalTradedVolume + EODHD backup
+        if rel_volume_ratio is None:
+            try:
+                nse_fb = get_nse_quote(ticker)
+                if nse_fb and nse_fb.get("rel_vol") is not None:
+                    rel_volume_ratio = nse_fb["rel_vol"]
+            except Exception:
+                pass
+
         rel_volume_str = f"{rel_volume_ratio}x" if rel_volume_ratio else "N/A"
 
         currency = info.get("currency", "INR")
