@@ -747,6 +747,23 @@ func main() {
 		c.JSON(http.StatusOK, result)
 	})
 
+	r.POST("/analyze-portfolio", func(c *gin.Context) {
+		var req struct {
+			Holdings    []map[string]interface{} `json:"holdings" binding:"required"`
+			UserContext string                   `json:"user_context"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		result, err := proxyPost("/analyze-portfolio", req)
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Portfolio analysis service unavailable"})
+			return
+		}
+		c.JSON(http.StatusOK, result)
+	})
+
 	// ── Compare ────────────────────────────────────────
 	r.POST("/compare", func(c *gin.Context) {
 		var req struct {
