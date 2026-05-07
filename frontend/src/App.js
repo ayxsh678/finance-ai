@@ -11,7 +11,7 @@ const API_URL =
   process.env.REACT_APP_API_URL ||
   ((window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
     ? "http://localhost:8001"
-    : "https://quantiq-go.onrender.com");
+    : "https://finance-ai-bt9x.onrender.com");
 
 // ── Color tokens ────────────────────────────────────────
 const C = {
@@ -1440,10 +1440,11 @@ export default function App() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ holdings, user_context: "" }),
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         setAnalysisResult(data);
-      } catch {
-        setAnalysisResult({ error: "Portfolio analysis failed. Try again." });
+      } catch (err) {
+        setAnalysisResult({ error: `Portfolio analysis failed: ${err.message}` });
       }
       setAnalysisLoading(false);
     };
