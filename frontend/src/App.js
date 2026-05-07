@@ -876,6 +876,10 @@ export default function App() {
   const [loading, setLoading]     = useState(false);
   const [timeRange, setTimeRange] = useState("7d");
   const bottomRef                 = useRef(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [chatSessions, setChatSessions] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("fintrest_sessions") || "[]"); } catch { return []; }
+  });
 
   // Portfolio (simple — ticker-only, used by chat flow)
   const [portfolio, setPortfolio]               = useState([]);
@@ -1151,7 +1155,41 @@ export default function App() {
     setLoading(false);
   };
 
+  const saveChatSession = (msgs, sid) => {
+    const userMsgs = msgs.filter(m => m.role === "user");
+    if (!userMsgs.length) return;
+    const entry = {
+      id:       sid || getSessionId() || Date.now().toString(),
+      ts:       Date.now(),
+      preview:  userMsgs[0].content.slice(0, 80),
+      messages: msgs,
+    };
+    setChatSessions(prev => {
+      const deduped = prev.filter(s => s.id !== entry.id);
+      const next    = [entry, ...deduped].slice(0, 20);
+      localStorage.setItem("fintrest_sessions", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const loadChatSession = async (session) => {
+    const sid = session.id;
+    let msgs   = session.messages || [];
+    try {
+      const res  = await fetch(`${API_URL}/session/${sid}/history`);
+      if (res.ok) {
+        const data = await res.json();
+        const hist = (data.messages || []).map(m => mkMsg(m.role, m.content, { sources: [] }));
+        if (hist.length) msgs = hist;
+      }
+    } catch {}
+    setSessionId(sid);
+    setMessages(msgs.length ? msgs : session.messages);
+    setHistoryOpen(false);
+  };
+
   const handleNewChat = async () => {
+    saveChatSession(messages, getSessionId());
     await clearSession();
     setMessages([mkMsg("assistant", "New conversation started. What would you like to know?", { sources: [] })]);
   };
@@ -1296,32 +1334,88 @@ export default function App() {
 
   // ── Chat view ──────────────────────────────────────────
   function ChatView() {
+    const fmtSessionDate = (ts) => {
+      const d    = new Date(ts);
+      const now  = new Date();
+      const diff = now - d;
+      if (diff < 86400000 && d.getDate() === now.getDate()) return "Today";
+      if (diff < 172800000) return "Yesterday";
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    };
+
+    const grouped = chatSessions.reduce((acc, s) => {
+      const label = fmtSessionDate(s.ts);
+      (acc[label] = acc[label] || []).push(s);
+      return acc;
+    }, {});
+
     return (
-      <div className="chat-wrap">
-        <div style={{ padding: "14px 24px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: C.text }}>Fintrest Advisor</div>
-          <button className="btn-ghost" style={{ fontSize: 12 }} onClick={handleNewChat} disabled={loading}>+ New conversation</button>
-        </div>
-        <div className="chat-messages">
-          {messages.map((msg) => <ChatBubble key={msg._id} msg={msg} />)}
-          {loading && (
-            <div className="chat-bubble-assistant">
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                {[0.1, 0.2, 0.3].map(d => (
-                  <div key={d} style={{ width: 6, height: 6, borderRadius: "50%", background: C.textSec, animation: `fadeUp 0.8s ${d}s ease-in-out infinite alternate` }} />
-                ))}
-              </div>
+      <div className="chat-wrap" style={{ flexDirection: "row" }}>
+        {/* History sidebar */}
+        {historyOpen && (
+          <div className="chat-history-panel">
+            <div className="chat-history-header">
+              <span>History</span>
+              <button className="chat-history-close" onClick={() => setHistoryOpen(false)}>
+                <X size={14} />
+              </button>
             </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-        <div className="chat-input-bar">
-          <input className="chat-input-field" value={input} onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage(input)}
-            placeholder="Ask about any NSE/BSE stock or market trend…" />
-          <button className="chat-send-btn" onClick={() => sendMessage(input)} disabled={loading}>
-            <Send size={16} />
-          </button>
+            <div className="chat-history-list">
+              {chatSessions.length === 0 ? (
+                <div className="chat-history-empty">No previous chats</div>
+              ) : (
+                Object.entries(grouped).map(([label, sessions]) => (
+                  <div key={label}>
+                    <div className="chat-history-group-label">{label}</div>
+                    {sessions.map(s => (
+                      <button key={s.id} className="chat-history-item" onClick={() => loadChatSession(s)}>
+                        <div className="chat-history-preview">{s.preview}</div>
+                        <div className="chat-history-time">
+                          {new Date(s.ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Main chat */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <div style={{ padding: "14px 24px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <button className="btn-ghost" style={{ padding: "5px 8px", fontSize: 12 }} onClick={() => setHistoryOpen(o => !o)} title="Chat history">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </button>
+              <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: C.text }}>Fintrest Advisor</div>
+            </div>
+            <button className="btn-ghost" style={{ fontSize: 12 }} onClick={handleNewChat} disabled={loading}>+ New conversation</button>
+          </div>
+          <div className="chat-messages">
+            {messages.map((msg) => <ChatBubble key={msg._id} msg={msg} />)}
+            {loading && (
+              <div className="chat-bubble-assistant">
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  {[0.1, 0.2, 0.3].map(d => (
+                    <div key={d} style={{ width: 6, height: 6, borderRadius: "50%", background: C.textSec, animation: `fadeUp 0.8s ${d}s ease-in-out infinite alternate` }} />
+                  ))}
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+          <div className="chat-input-bar">
+            <input className="chat-input-field" value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage(input)}
+              placeholder="Ask about any NSE/BSE stock or market trend…" />
+            <button className="chat-send-btn" onClick={() => sendMessage(input)} disabled={loading}>
+              <Send size={16} />
+            </button>
+          </div>
         </div>
       </div>
     );
