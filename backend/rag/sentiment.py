@@ -5,6 +5,8 @@ import json
 import random
 import threading
 import time
+import xml.etree.ElementTree as ET
+from urllib.parse import quote as urlquote
 import requests
 from datetime import datetime, timedelta
 from cachetools import TTLCache
@@ -143,9 +145,9 @@ FINANCIAL_SIGNALS = [
 ]
 
 # ── Caches ─────────────────────────────────────────────
-_cache: TTLCache        = TTLCache(maxsize=200, ttl=30 * 60)
+_cache: TTLCache        = TTLCache(maxsize=200, ttl=2 * 60 * 60)  # 2 hours
 _cache_lock             = threading.Lock()
-_impact_cache: TTLCache = TTLCache(maxsize=200, ttl=30 * 60)
+_impact_cache: TTLCache = TTLCache(maxsize=200, ttl=2 * 60 * 60)  # 2 hours
 _impact_lock            = threading.Lock()
 
 
@@ -189,6 +191,36 @@ def _mentions_company(text: str, company_name: str, base_ticker: str) -> bool:
             return True
 
     return False
+
+
+def _fetch_google_news_rss(search_term: str, base_ticker: str) -> list[dict]:
+    """Google News RSS — free, no auth, no rate limit. Good Indian coverage."""
+    query = urlquote(f"{search_term} stock")
+    url   = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+    try:
+        resp = requests.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
+        resp.raise_for_status()
+        root     = ET.fromstring(resp.content)
+        articles = []
+        for item in root.findall(".//item")[:20]:
+            title = re.sub(r"<[^>]+>", "", item.findtext("title") or "").strip()
+            desc  = re.sub(r"<[^>]+>", "", item.findtext("description") or "").strip()
+            link  = (item.findtext("link") or "").strip()
+            pub   = (item.findtext("pubDate") or "").strip()
+            if not title or not _mentions_company(title + " " + desc, search_term, base_ticker):
+                continue
+            articles.append({
+                "title":        title,
+                "description":  desc,
+                "source":       "Google News",
+                "published_at": pub,
+                "url":          link,
+            })
+        logger.debug("[sentiment] GoogleNewsRSS: %d articles for %s", len(articles), search_term)
+        return articles
+    except Exception as e:
+        logger.warning("[GoogleNewsRSS] error for %s: %s", search_term, e)
+        return []
 
 
 def _groq_post(payload: dict) -> dict | None:
@@ -355,6 +387,10 @@ def _fetch_articles_detailed(
                 logger.warning("[NewsAPI] timeout for %s", ticker)
             except Exception as e:
                 logger.warning("[NewsAPI] error for %s: %s", ticker, e)
+
+    # ── Source 3: Google News RSS (free, no auth, no rate limit) ──
+    if not articles:
+        articles = _fetch_google_news_rss(search_term, base_ticker)
 
     # ── Filter: keep only financial articles ───────────
     filtered = [
