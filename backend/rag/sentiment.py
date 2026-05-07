@@ -252,7 +252,10 @@ def _fetch_articles_detailed(
 
 
 def _fetch_headlines(ticker: str, company_name: str = "") -> list[str]:
-    articles  = _fetch_articles_detailed(ticker, company_name, days=3)
+    articles = _fetch_articles_detailed(ticker, company_name, days=3)
+    if not articles:
+        logger.info("[sentiment] 0 articles with days=3 for %s; retrying with days=7", ticker)
+        articles = _fetch_articles_detailed(ticker, company_name, days=7)
     logger.debug("[sentiment] _fetch_headlines: got %d articles for %s", len(articles), ticker)
     headlines = []
     for a in articles:
