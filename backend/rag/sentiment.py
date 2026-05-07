@@ -18,6 +18,113 @@ BASE_BACKOFF   = 1.0
 MAX_BACKOFF    = 6.0
 RETRY_STATUSES = {429, 500, 502, 503, 504}
 
+# US ADR tickers for popular Indian companies — used for Finnhub lookup
+INDIA_ADR_MAP = {
+    "HDFCBANK": "HDB",
+    "ICICIBANK": "IBN",
+    "WIPRO":     "WIT",
+    "TATAMOTORS":"TTM",
+    "DRREDDY":   "RDY",
+    "INFY":      "INFY",
+}
+
+# Canonical search names for NSE tickers — overrides abbreviated display names
+INDIA_SEARCH_NAMES = {
+    "RELIANCE":   "Reliance Industries",
+    "HDFCBANK":   "HDFC Bank",
+    "ICICIBANK":  "ICICI Bank",
+    "TCS":        "Tata Consultancy Services",
+    "INFY":       "Infosys",
+    "SBIN":       "State Bank of India",
+    "BAJFINANCE": "Bajaj Finance",
+    "KOTAKBANK":  "Kotak Mahindra Bank",
+    "HINDUNILVR": "Hindustan Unilever",
+    "WIPRO":      "Wipro",
+    "AXISBANK":   "Axis Bank",
+    "MARUTI":     "Maruti Suzuki",
+    "TITAN":      "Titan Company",
+    "ASIANPAINT": "Asian Paints",
+    "SUNPHARMA":  "Sun Pharma",
+    "ZOMATO":     "Zomato",
+    "ADANIENT":   "Adani Enterprises",
+    "TATAMOTORS": "Tata Motors",
+    "TATASTEEL":  "Tata Steel",
+    "NTPC":       "NTPC",
+    "ONGC":       "ONGC",
+    "POWERGRID":  "Power Grid Corporation",
+    "COALINDIA":  "Coal India",
+    "BHARTIARTL": "Airtel",
+    "HCLTECH":    "HCL Technologies",
+    "LTIM":       "LTIMindtree",
+    "CIPLA":      "Cipla",
+    "IRCTC":      "IRCTC",
+    "INDIGO":     "IndiGo",
+    "PAYTM":      "Paytm",
+    "FSN":        "Nykaa",
+    "DELHIVERY":  "Delhivery",
+    "BAJAJ-AUTO": "Bajaj Auto",
+    "EICHERMOT":  "Eicher Motors",
+    "DIVISLAB":   "Divis Laboratories",
+    "ULTRACEMCO": "UltraTech Cement",
+    "GRASIM":     "Grasim Industries",
+    "ADANIPORTS": "Adani Ports",
+    "ADANIGREEN": "Adani Green Energy",
+    "TATAPOWER":  "Tata Power",
+    "HINDALCO":   "Hindalco Industries",
+    "JSWSTEEL":   "JSW Steel",
+    "BHEL":       "BHEL",
+    "BANKBARODA": "Bank of Baroda",
+    "HEROMOTOCO": "Hero MotoCorp",
+    "POLICYBZR":  "PB Fintech",
+    "OLAMOBILITY":"Ola Electric",
+    "ITC":        "ITC Limited",
+    "LT":         "Larsen Toubro",
+    "BAJAJFINSV": "Bajaj Finserv",
+    "NESTLEIND":  "Nestle India",
+    "TATACONSUM": "Tata Consumer Products",
+    "PIDILITIND": "Pidilite Industries",
+    "SBILIFE":    "SBI Life Insurance",
+    "HDFCLIFE":   "HDFC Life Insurance",
+    "ICICIPRULI": "ICICI Prudential",
+    "SHREECEM":   "Shree Cement",
+    "TECHM":      "Tech Mahindra",
+    "INDUSINDBK": "IndusInd Bank",
+    "APOLLOHOSP": "Apollo Hospitals",
+    "BPCL":       "Bharat Petroleum",
+    "VEDL":       "Vedanta",
+    "PNB":        "Punjab National Bank",
+    "CANBK":      "Canara Bank",
+    "BANKBARODA": "Bank of Baroda",
+    "MUTHOOTFIN": "Muthoot Finance",
+    "HAL":        "Hindustan Aeronautics",
+    "BEL":        "Bharat Electronics",
+    "BHEL":       "BHEL",
+    "M&M":        "Mahindra Mahindra",
+    "IRFC":       "Indian Railway Finance",
+    "RVNL":       "Rail Vikas Nigam",
+    "DLF":        "DLF Limited",
+    "GODREJPROP": "Godrej Properties",
+    "TVSMOTOR":   "TVS Motor",
+    "ASHOKLEY":   "Ashok Leyland",
+    "AUROPHARMA": "Aurobindo Pharma",
+    "LUPIN":      "Lupin",
+    "TORNTPHARM": "Torrent Pharmaceuticals",
+    "SRF":        "SRF Limited",
+    "DEEPAKNTR":  "Deepak Nitrite",
+    "TATACHEM":   "Tata Chemicals",
+    "BRITANNIA":  "Britannia Industries",
+    "VBL":        "Varun Beverages",
+    "COFORGE":    "Coforge",
+    "PERSISTENT": "Persistent Systems",
+    "MPHASIS":    "Mphasis",
+    "RECLTD":     "REC Limited",
+    "PFC":        "Power Finance Corporation",
+    "TATAPOWER":  "Tata Power",
+    "INDIGO":     "IndiGo Airlines",
+    "EASEMYTRIP": "EaseMyTrip",
+    "CARTRADE":   "CarTrade Tech",
+}
+
 NOISE_PATTERNS = [
     "deals of the week", "best deals", "% off", "discount",
     "review:", "hands-on", "how to use", "tips and tricks",
@@ -145,17 +252,24 @@ def _fetch_articles_detailed(
     is_indian   = ticker.endswith(".NS") or ticker.endswith(".BO")
     end_date    = datetime.utcnow().strftime("%Y-%m-%d")
     start_date  = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
-    search_term = company_name if company_name else base_ticker
+
+    # Use canonical search name for Indian stocks (overrides abbreviated display names)
+    if is_indian and base_ticker in INDIA_SEARCH_NAMES:
+        search_term = INDIA_SEARCH_NAMES[base_ticker]
+    else:
+        search_term = company_name if company_name else base_ticker
     logger.debug("[sentiment] _fetch_articles_detailed: ticker=%s, is_indian=%s, search_term=%s", ticker, is_indian, search_term)
 
     # ── Source 1: Finnhub ──────────────────────────────
+    # Map Indian tickers to their US ADR symbol where available
+    finnhub_symbol = INDIA_ADR_MAP.get(base_ticker, base_ticker) if is_indian else base_ticker
     finnhub_key = os.getenv("FINNHUB_API_KEY", "")
     if finnhub_key:
         try:
             resp = requests.get(
                 "https://finnhub.io/api/v1/company-news",
                 params={
-                    "symbol": base_ticker,
+                    "symbol": finnhub_symbol,
                     "from":   start_date,
                     "to":     end_date,
                     "token":  finnhub_key,
