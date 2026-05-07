@@ -1829,18 +1829,15 @@ export default function App() {
     );
   }
 
-  // ── Render active section ──────────────────────────────
-  // Called as functions (not JSX components) so React never sees a new component
-  // type reference on re-render — prevents unmount/remount and input focus loss.
   function renderSection() {
     switch (activeSection) {
-      case "market":    return <MarketView />;
-      case "chat":      return <ChatView />;
-      case "watchlist": return <WatchlistView />;
-      case "compare":   return <CompareView />;
-      case "portfolio": return <PortfolioView />;
-      case "alerts":    return <AlertsView />;
-      default:          return <MarketView />;
+      case "market":    return MarketView();
+      case "chat":      return ChatView();
+      case "watchlist": return WatchlistView();
+      case "compare":   return CompareView();
+      case "portfolio": return PortfolioView();
+      case "alerts":    return AlertsView();
+      default:          return MarketView();
     }
   }
 
