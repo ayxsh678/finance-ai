@@ -1443,8 +1443,8 @@ export default function App() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         setAnalysisResult(data);
-      } catch {
-        setAnalysisResult({ error: "Portfolio analysis failed. Try again." });
+      } catch (err) {
+        setAnalysisResult({ error: `Portfolio analysis failed: ${err.message}` });
       }
       setAnalysisLoading(false);
     };
