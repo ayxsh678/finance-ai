@@ -737,6 +737,140 @@ function TradingViewChart({ ticker, height = 220, days = 180 }) {
 }
 
 // ── Chat bubble ───────────────────────────────────────────
+// ── Ticker autocomplete data ──────────────────────────────
+const TICKER_LIST = [
+  // Nifty 50 / large-cap NSE
+  { ticker: "RELIANCE.NS",    name: "Reliance Industries" },
+  { ticker: "TCS.NS",         name: "Tata Consultancy Services" },
+  { ticker: "HDFCBANK.NS",    name: "HDFC Bank" },
+  { ticker: "INFY.NS",        name: "Infosys" },
+  { ticker: "ICICIBANK.NS",   name: "ICICI Bank" },
+  { ticker: "HINDUNILVR.NS",  name: "Hindustan Unilever" },
+  { ticker: "SBIN.NS",        name: "State Bank of India" },
+  { ticker: "BHARTIARTL.NS",  name: "Bharti Airtel" },
+  { ticker: "ITC.NS",         name: "ITC Limited" },
+  { ticker: "KOTAKBANK.NS",   name: "Kotak Mahindra Bank" },
+  { ticker: "LT.NS",          name: "Larsen & Toubro" },
+  { ticker: "AXISBANK.NS",    name: "Axis Bank" },
+  { ticker: "ASIANPAINT.NS",  name: "Asian Paints" },
+  { ticker: "MARUTI.NS",      name: "Maruti Suzuki" },
+  { ticker: "TITAN.NS",       name: "Titan Company" },
+  { ticker: "SUNPHARMA.NS",   name: "Sun Pharmaceutical" },
+  { ticker: "BAJFINANCE.NS",  name: "Bajaj Finance" },
+  { ticker: "BAJAJFINSV.NS",  name: "Bajaj Finserv" },
+  { ticker: "NTPC.NS",        name: "NTPC Limited" },
+  { ticker: "POWERGRID.NS",   name: "Power Grid Corporation" },
+  { ticker: "ONGC.NS",        name: "Oil & Natural Gas Corp" },
+  { ticker: "TATAMOTORS.NS",  name: "Tata Motors" },
+  { ticker: "TATASTEEL.NS",   name: "Tata Steel" },
+  { ticker: "WIPRO.NS",       name: "Wipro" },
+  { ticker: "HCLTECH.NS",     name: "HCL Technologies" },
+  { ticker: "TECHM.NS",       name: "Tech Mahindra" },
+  { ticker: "ULTRACEMCO.NS",  name: "UltraTech Cement" },
+  { ticker: "GRASIM.NS",      name: "Grasim Industries" },
+  { ticker: "NESTLEIND.NS",   name: "Nestle India" },
+  { ticker: "DIVISLAB.NS",    name: "Divi's Laboratories" },
+  { ticker: "DRREDDY.NS",     name: "Dr Reddy's Laboratories" },
+  { ticker: "CIPLA.NS",       name: "Cipla" },
+  { ticker: "EICHERMOT.NS",   name: "Eicher Motors" },
+  { ticker: "HEROMOTOCO.NS",  name: "Hero MotoCorp" },
+  { ticker: "JSWSTEEL.NS",    name: "JSW Steel" },
+  { ticker: "HINDALCO.NS",    name: "Hindalco Industries" },
+  { ticker: "BPCL.NS",        name: "Bharat Petroleum" },
+  { ticker: "COALINDIA.NS",   name: "Coal India" },
+  { ticker: "M&M.NS",         name: "Mahindra & Mahindra" },
+  { ticker: "ADANIENT.NS",    name: "Adani Enterprises" },
+  { ticker: "ADANIPORTS.NS",  name: "Adani Ports" },
+  { ticker: "ADANIGREEN.NS",  name: "Adani Green Energy" },
+  { ticker: "INDUSINDBK.NS",  name: "IndusInd Bank" },
+  { ticker: "APOLLOHOSP.NS",  name: "Apollo Hospitals" },
+  { ticker: "ZOMATO.NS",      name: "Zomato" },
+  { ticker: "NYKAA.NS",       name: "FSN E-Commerce (Nykaa)" },
+  { ticker: "PAYTM.NS",       name: "One97 Communications (Paytm)" },
+  { ticker: "TATACONSUM.NS",  name: "Tata Consumer Products" },
+  { ticker: "PIDILITIND.NS",  name: "Pidilite Industries" },
+  { ticker: "SBILIFE.NS",     name: "SBI Life Insurance" },
+  { ticker: "HDFCLIFE.NS",    name: "HDFC Life Insurance" },
+  { ticker: "ICICIPRULI.NS",  name: "ICICI Prudential Life" },
+  { ticker: "SHREECEM.NS",    name: "Shree Cement" },
+  { ticker: "DABUR.NS",       name: "Dabur India" },
+  { ticker: "MARICO.NS",      name: "Marico" },
+  { ticker: "GODREJCP.NS",    name: "Godrej Consumer Products" },
+  { ticker: "VEDL.NS",        name: "Vedanta" },
+  { ticker: "BANKBARODA.NS",  name: "Bank of Baroda" },
+  { ticker: "PNB.NS",         name: "Punjab National Bank" },
+  { ticker: "CANBK.NS",       name: "Canara Bank" },
+  { ticker: "IRCTC.NS",       name: "Indian Railway Catering" },
+  { ticker: "DMART.NS",       name: "Avenue Supermarts (DMart)" },
+  { ticker: "MUTHOOTFIN.NS",  name: "Muthoot Finance" },
+  { ticker: "HAL.NS",         name: "Hindustan Aeronautics" },
+  { ticker: "BEL.NS",         name: "Bharat Electronics" },
+  // US stocks
+  { ticker: "AAPL",           name: "Apple" },
+  { ticker: "MSFT",           name: "Microsoft" },
+  { ticker: "GOOGL",          name: "Alphabet (Google)" },
+  { ticker: "AMZN",           name: "Amazon" },
+  { ticker: "NVDA",           name: "NVIDIA" },
+  { ticker: "META",           name: "Meta Platforms" },
+  { ticker: "TSLA",           name: "Tesla" },
+  { ticker: "NFLX",           name: "Netflix" },
+  { ticker: "AMD",            name: "Advanced Micro Devices" },
+  { ticker: "INTC",           name: "Intel" },
+  // Crypto
+  { ticker: "BTC-USD",        name: "Bitcoin" },
+  { ticker: "ETH-USD",        name: "Ethereum" },
+  { ticker: "BNB-USD",        name: "BNB" },
+  { ticker: "SOL-USD",        name: "Solana" },
+  { ticker: "XRP-USD",        name: "XRP" },
+];
+
+// ── Ticker autocomplete component ─────────────────────────
+function TickerAutocomplete({ value, onChange, onSelect, onKeyDown, placeholder, className, style }) {
+  const [open, setOpen]             = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const containerRef                = useRef(null);
+
+  useEffect(() => {
+    if (!value) { setSuggestions([]); setOpen(false); return; }
+    const q = value.toUpperCase();
+    const filtered = TICKER_LIST.filter(t =>
+      t.ticker.startsWith(q) || t.name.toUpperCase().includes(q)
+    ).slice(0, 8);
+    setSuggestions(filtered);
+    setOpen(filtered.length > 0);
+  }, [value]);
+
+  useEffect(() => {
+    const handler = (e) => { if (!containerRef.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleSelect = (ticker) => {
+    if (onSelect) onSelect(ticker);
+    else onChange({ target: { value: ticker } });
+    setOpen(false);
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", ...style }}>
+      <input className={className} value={value} onChange={onChange} onKeyDown={onKeyDown}
+        placeholder={placeholder} style={{ width: "100%" }} autoComplete="off" />
+      {open && (
+        <div className="ticker-dropdown">
+          {suggestions.map(s => (
+            <button key={s.ticker} className="ticker-dropdown-item"
+              onMouseDown={e => { e.preventDefault(); handleSelect(s.ticker); }}>
+              <span className="ticker-dropdown-symbol">{s.ticker}</span>
+              <span className="ticker-dropdown-name">{s.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ChatBubble({ msg }) {
   const isUser  = msg.role === "user";
   const [copied, setCopied] = useState(false);
@@ -1442,9 +1576,15 @@ export default function App() {
         <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 22, color: C.text, marginBottom: 20 }}>Compare</div>
 
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr auto 1fr", gap: 12, marginBottom: 16 }}>
-          <input className="input-box" value={compareA} onChange={e => setCompareA(e.target.value.toUpperCase())} placeholder="TICKER A — e.g. RELIANCE.NS" />
+          <TickerAutocomplete className="input-box" value={compareA}
+            onChange={e => setCompareA(e.target.value.toUpperCase())}
+            onSelect={t => setCompareA(t)}
+            placeholder="TICKER A — e.g. RELIANCE.NS" />
           {!isMobile && <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Serif Display',serif", fontSize: 20, color: C.border, padding: "0 4px" }}>VS</div>}
-          <input className="input-box" value={compareB} onChange={e => setCompareB(e.target.value.toUpperCase())} placeholder="TICKER B — e.g. TCS.NS" />
+          <TickerAutocomplete className="input-box" value={compareB}
+            onChange={e => setCompareB(e.target.value.toUpperCase())}
+            onSelect={t => setCompareB(t)}
+            placeholder="TICKER B — e.g. TCS.NS" />
         </div>
 
         <button className="btn-gold" style={{ width: "100%", marginBottom: 20 }} disabled={compareLoading || !compareA || !compareB} onClick={() => runComparison()}>
@@ -1574,8 +1714,9 @@ export default function App() {
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "2fr 1fr 1fr auto", gap: 8, alignItems: "end" }}>
                 <div>
                   <div className="label" style={{ fontSize: 10, marginBottom: 6 }}>Ticker</div>
-                  <input className="input-box" value={holdingInput.ticker}
+                  <TickerAutocomplete className="input-box" value={holdingInput.ticker}
                     onChange={e => setHoldingInput(p => ({ ...p, ticker: e.target.value.toUpperCase() }))}
+                    onSelect={t => setHoldingInput(p => ({ ...p, ticker: t }))}
                     onKeyDown={e => e.key === "Enter" && addHolding()}
                     placeholder="e.g. INFY.NS" />
                 </div>
@@ -1751,8 +1892,9 @@ export default function App() {
         {portMode === "simple" && (
           <>
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              <input className="input-box" style={{ flex: 1 }} value={portfolioInput}
+              <TickerAutocomplete className="input-box" style={{ flex: 1 }} value={portfolioInput}
                 onChange={e => setPortfolioInput(e.target.value)}
+                onSelect={t => { addToPortfolio(t); setPortfolioInput(""); }}
                 onKeyDown={e => { if (e.key === "Enter") { addToPortfolio(portfolioInput); setPortfolioInput(""); } }}
                 placeholder="Add ticker — e.g. AAPL, BTC, INFY.NS" />
               <button className="btn-gold" style={{ padding: "0 18px" }} onClick={() => { addToPortfolio(portfolioInput); setPortfolioInput(""); }}>
@@ -1840,7 +1982,10 @@ export default function App() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
               <div className="label" style={{ marginBottom: 8, fontSize: 10 }}>Ticker</div>
-              <input className="input-box" value={alertTicker} onChange={e => setAlertTicker(e.target.value.toUpperCase())} placeholder="e.g. RELIANCE.NS" />
+              <TickerAutocomplete className="input-box" value={alertTicker}
+                onChange={e => setAlertTicker(e.target.value.toUpperCase())}
+                onSelect={t => setAlertTicker(t)}
+                placeholder="e.g. RELIANCE.NS" />
             </div>
             <div>
               <div className="label" style={{ marginBottom: 8, fontSize: 10 }}>Price Threshold</div>
