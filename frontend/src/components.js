@@ -1,0 +1,667 @@
+import { useState, useRef, useEffect } from "react";
+import { AreaChart, Area, YAxis, ResponsiveContainer } from "recharts";
+import { Bookmark, Copy, Check } from "lucide-react";
+import Aperture from "./Aperture";
+import { C, METRIC_EXPLANATIONS, CHART_VALID_TICKER, TICKER_LIST, API_URL } from "./constants";
+import { generateSparkline, sentimentColor, currencySymbol, maybeTitle, fmt, fmtPct, tvSymbolUrl, setToken, setUser } from "./utils";
+
+// ── Loading line ──────────────────────────────────────────
+export function LoadingLine({ message = "Fetching market data…" }) {
+  return (
+    <div style={{ padding: "32px 0", display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start" }}>
+      <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec }}>{message}</span>
+      <div className="progress-line-wrap" style={{ width: 200 }}>
+        <div className="progress-line" />
+      </div>
+    </div>
+  );
+}
+
+// ── Empty state ───────────────────────────────────────────
+export function EmptyState({ Icon: Icon_, title, subtitle }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "64px 24px", gap: 12, textAlign: "center" }}>
+      {Icon_ && <Icon_ size={28} color={C.textTer} />}
+      <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: C.text }}>{title}</div>
+      {subtitle && <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: C.textSec }}>{subtitle}</div>}
+    </div>
+  );
+}
+
+// ── Sentiment bar (watchlist row) ─────────────────────────
+export function SentimentBar({ score }) {
+  const color = sentimentColor(score);
+  return (
+    <div style={{ width: 64 }}>
+      <div style={{ height: 3, background: C.border, borderRadius: 2, overflow: "hidden" }}>
+        {score != null && (
+          <div style={{ height: "100%", width: `${score}%`, background: `linear-gradient(90deg,${color}66,${color})`, borderRadius: 2, transition: "width 0.6s ease" }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Sentiment gauge (SVG arc) ─────────────────────────────
+export function SentimentGauge({ ticker, sentiment, loading }) {
+  const score     = sentiment?.score ?? null;
+  const label     = sentiment?.label ?? "—";
+  const headlines = sentiment?.headlines ?? [];
+  const count     = sentiment?.headline_count ?? 0;
+
+  const cx = 100, cy = 100, r = 78;
+  const safeScore = score ?? 0;
+  const angle     = Math.PI * (1 - safeScore / 100);
+  const nx        = cx + r * Math.cos(angle);
+  const ny        = cy - r * Math.sin(angle);
+  const largeArc  = 0;
+  const arcLen    = Math.PI * r * safeScore / 100;
+
+  return (
+    <div className="card" style={{ padding: "20px 24px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+        <div>
+          <div className="label" style={{ marginBottom: 4 }}>News Sentiment</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.textSec, fontWeight: 500 }}>{ticker}</div>
+        </div>
+        {!loading && score != null && (
+          <div className={score >= 62 ? "pill-pos" : score <= 38 ? "pill-neg" : "pill-neutral"} style={{ fontSize: 11, padding: "3px 10px" }}>
+            {label}
+          </div>
+        )}
+      </div>
+
+      {loading || sentiment === undefined ? (
+        <LoadingLine message="Analyzing headlines…" />
+      ) : score != null ? (
+        <>
+          <div style={{ display: "flex", justifyContent: "center", minHeight: 112 }}>
+            <svg viewBox="0 0 200 108" width="200" height="108" style={{ overflow: "visible", display: "block" }}>
+              <defs>
+                <linearGradient id="sg-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%"   stopColor="#E05C5C" />
+                  <stop offset="38%"  stopColor="#C8813A" />
+                  <stop offset="62%"  stopColor="#C8A96E" />
+                  <stop offset="100%" stopColor="#4CAF7D" />
+                </linearGradient>
+              </defs>
+              <path d={`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}`}
+                fill="none" stroke={C.border} strokeWidth="10" strokeLinecap="round" />
+              {safeScore > 0 && (
+                <path d={`M ${cx-r} ${cy} A ${r} ${r} 0 ${largeArc} 1 ${nx} ${ny}`}
+                  fill="none" stroke="url(#sg-grad)" strokeWidth="10" strokeLinecap="round"
+                  style={{ "--arc-len": arcLen, strokeDasharray: arcLen, strokeDashoffset: arcLen, animation: "drawGauge 0.8s ease-in-out forwards" }} />
+              )}
+              <line x1={cx} y1={cy} x2={nx} y2={ny} stroke={C.text} strokeWidth="2" strokeLinecap="round" />
+              <circle cx={nx} cy={ny} r="4" fill={C.text} />
+              <circle cx={cx} cy={cy} r="4.5" fill={C.surface2} stroke={C.text} strokeWidth="1.5" />
+              <text x={cx-r} y={cy+14} textAnchor="middle" fontSize="9" fill={C.textTer} fontFamily="DM Sans">0</text>
+              <text x={cx+r} y={cy+14} textAnchor="middle" fontSize="9" fill={C.textTer} fontFamily="DM Sans">100</text>
+            </svg>
+          </div>
+
+          <div style={{ textAlign: "center", marginTop: -4, marginBottom: 16, minHeight: 64 }}>
+            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 32, color: C.text, lineHeight: 1 }}>{score}</div>
+            <div className="label" style={{ marginTop: 6 }}>{label}</div>
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: C.textTer, marginTop: 4 }}>
+              {count} headline{count !== 1 ? "s" : ""} analyzed
+            </div>
+          </div>
+
+          {headlines.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 180, overflowY: "auto" }}>
+              {headlines.slice(0, 5).map((h, i) => (
+                <div key={i} style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec, lineHeight: 1.4, padding: "8px 12px", background: C.surface2, borderRadius: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={h}>
+                  {h}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : sentiment === null ? (
+        <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec }}>Unable to fetch sentiment data.</div>
+      ) : (
+        <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec }}>No sentiment data available for this ticker.</div>
+      )}
+    </div>
+  );
+}
+
+// ── News feed ─────────────────────────────────────────────
+export function NewsFeed({ ticker, news, loading }) {
+  const [openIdx, setOpenIdx] = useState(null);
+  const items   = news?.news ?? [];
+  const summary = news?.sentiment_summary;
+  const overall = news?.overall_sentiment;
+
+  const dirColor = (d) => d === "may increase" ? C.pos : d === "may decrease" ? C.neg : C.neutral;
+  const dirArrow = (d) => d === "may increase" ? "▲" : d === "may decrease" ? "▼" : "▬";
+  const timeAgo  = (iso) => {
+    if (!iso) return "";
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 3600)  return `${Math.max(1, Math.floor(diff / 60))}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  };
+
+  return (
+    <div className="card">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div>
+          <div className="label" style={{ marginBottom: 4 }}>Smart News</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.textSec }}>{ticker}</div>
+        </div>
+        {overall && (
+          <span className={overall === "positive" ? "pill-pos" : overall === "negative" ? "pill-neg" : "pill-neutral"} style={{ fontSize: 11 }}>
+            {overall}
+          </span>
+        )}
+      </div>
+
+      {loading ? (
+        <LoadingLine message="Analyzing news impact…" />
+      ) : items.length === 0 ? (
+        <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec }}>{summary || "No recent news found."}</div>
+      ) : (
+        <>
+          {summary && (
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.text, lineHeight: 1.6, marginBottom: 14, padding: "10px 14px", background: C.surface2, borderRadius: 8 }}>
+              {summary}
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {items.map((n, i) => {
+              const isOpen = openIdx === i;
+              const color  = dirColor(n.price_direction);
+              return (
+                <div key={i} style={{ background: C.surface2, borderRadius: 10, borderLeft: `3px solid ${color}`, padding: "10px 14px", cursor: "pointer", transition: "background 150ms" }}
+                  onClick={() => setOpenIdx(isOpen ? null : i)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                    <div style={{ flex: 1, fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.text, lineHeight: 1.4, fontWeight: 500 }}>{n.title}</div>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 3, background: `${color}18`, border: `1px solid ${color}44`, borderRadius: 12, padding: "2px 8px", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color, fontWeight: 500, flexShrink: 0 }}>
+                      <span>{dirArrow(n.price_direction)}</span><span>{n.impact_score}/10</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: C.textSec }}>
+                    <span>{n.source}{n.published_at && ` · ${timeAgo(n.published_at)}`}</span>
+                    <span style={{ color }}>{n.price_direction} {isOpen ? "▾" : "▸"}</span>
+                  </div>
+                  {isOpen && (
+                    <div style={{ marginTop: 8, padding: "8px 10px", background: C.bg, borderRadius: 6, fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.textSec, lineHeight: 1.6 }}>
+                      {n.impact_explanation}
+                      {n.url && (
+                        <a href={n.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                          style={{ display: "block", marginTop: 6, color: C.accent, fontSize: 11, textDecoration: "none" }}>
+                          Read full article ↗
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Compare table ─────────────────────────────────────────
+export function CompareTable({ data, ticker_a, ticker_b }) {
+  const [expanded, setExpanded] = useState(null);
+  const stockA = data?.data_a?.stock || {};
+  const stockB = data?.data_b?.stock || {};
+  const earnA  = data?.data_a?.earnings || {};
+  const earnB  = data?.data_b?.earnings || {};
+
+  const rows = [
+    { label: "Price",     a: fmt(stockA.price),            b: fmt(stockB.price)            },
+    { label: "5D Change", a: fmtPct(stockA.five_day_change),b: fmtPct(stockB.five_day_change)},
+    { label: "Mkt Cap",   a: fmt(stockA.market_cap),       b: fmt(stockB.market_cap)       },
+    { label: "P/E",       a: fmt(stockA.pe_ratio),         b: fmt(stockB.pe_ratio)         },
+    { label: "EPS",       a: fmt(stockA.eps_actual ?? earnA.eps_actual), b: fmt(stockB.eps_actual ?? earnB.eps_actual) },
+    { label: "52W High",  a: fmt(stockA.week52_high),      b: fmt(stockB.week52_high)      },
+    { label: "52W Low",   a: fmt(stockA.week52_low),       b: fmt(stockB.week52_low)       },
+    { label: "Rel Vol",   a: fmt(stockA.rel_volume),       b: fmt(stockB.rel_volume)       },
+  ];
+  const hasAnyData = rows.some(row => row.a !== "—" || row.b !== "—");
+  const isDown = (v) => typeof v === "string" && v.startsWith("-");
+
+  if (!hasAnyData) {
+    return (
+      <div className="card" style={{ padding: 16, fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec }}>
+        No comparison metrics returned for these tickers. Check the symbols and try again.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: C.surface2, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ padding: "10px 14px" }} />
+        {[ticker_a, ticker_b].map(t => (
+          <div key={t} title={maybeTitle(t)} style={{ padding: "10px 8px", textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t}</div>
+        ))}
+      </div>
+      {rows.map((row, i) => {
+        const isOpen = expanded === row.label;
+        const exp    = METRIC_EXPLANATIONS[row.label];
+        return (
+          <div key={i} style={{ borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : "none" }}>
+            <div onClick={() => setExpanded(isOpen ? null : row.label)}
+              style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: i % 2 === 0 ? C.surface : C.bg, cursor: exp ? "pointer" : "default" }}>
+              <div style={{ padding: "8px 14px", fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: isOpen ? C.accent : C.textSec, display: "flex", alignItems: "center", gap: 4 }}>
+                {row.label}
+                {exp && <span style={{ fontSize: 9, opacity: 0.5 }}>{isOpen ? "▾" : "ⓘ"}</span>}
+              </div>
+              {[row.a, row.b].map((val, j) => (
+                <div key={j} title={maybeTitle(val)} style={{ padding: "8px 8px", textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: row.label === "5D Change" ? (isDown(val) ? C.neg : val === "—" ? C.textSec : C.pos) : C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{val}</div>
+              ))}
+            </div>
+            {isOpen && exp && (
+              <div style={{ padding: "10px 14px", background: C.surface2, borderTop: `1px solid ${C.border}` }}>
+                <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.accent, fontWeight: 600, marginBottom: 4 }}>{exp.short}</div>
+                <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.textSec, lineHeight: 1.6 }}>{exp.detail}</div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Stock card (market tab list) ──────────────────────────
+export function StockCard({ stock, isSelected, onClick, sentiment, sentimentLoading }) {
+  const data  = Array.isArray(stock.sparkline) && stock.sparkline.length > 1
+    ? stock.sparkline.map((p, i) => ({ i, v: p }))
+    : generateSparkline(stock.base);
+  const isUp  = (stock.change ?? 0) >= 0;
+  const color = isUp ? C.pos : C.neg;
+  const sym   = currencySymbol(stock.type);
+  return (
+    <div className={`stock-card${isSelected ? " selected" : ""}`} onClick={onClick}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.textSec, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={maybeTitle(stock.ticker)}>
+            {stock.ticker}
+          </div>
+          <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, color: C.text, fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={maybeTitle(stock.name, 20)}>
+            {stock.name}
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0, paddingLeft: 12 }}>
+          <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 20, color: C.text, lineHeight: 1.1 }}>
+            {stock.price == null ? "—" : `${sym}${stock.price.toLocaleString()}`}
+          </div>
+          <div style={{ marginTop: 4 }}>
+            <span className={isUp ? "pill-pos" : "pill-neg"} style={{ fontSize: 11 }}>
+              {isUp ? "▲" : "▼"} {Math.abs(stock.change ?? 0).toFixed(2)}%
+            </span>
+          </div>
+        </div>
+      </div>
+      <div style={{ height: 44, marginBottom: 10 }}>
+        <ResponsiveContainer width="100%" height={44}>
+          <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 2 }}>
+            <defs>
+              <linearGradient id={`spark-${stock.ticker}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor={color} stopOpacity={0.25} />
+                <stop offset="95%" stopColor={color} stopOpacity={0}    />
+              </linearGradient>
+            </defs>
+            <YAxis domain={["auto","auto"]} hide />
+            <Area type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} fill={`url(#spark-${stock.ticker})`} dot={false} isAnimationActive={false} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 16 }}>
+        <div className="label" style={{ fontSize: 10 }}>Sentiment</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 94, justifyContent: "flex-end" }}>
+          {sentimentLoading ? (
+            <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: C.textTer }}>…</span>
+          ) : sentiment?.score != null ? (
+            <>
+              <SentimentBar score={sentiment.score} />
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: sentimentColor(sentiment.score), minWidth: 28, textAlign: "right" }}>{sentiment.score}</span>
+            </>
+          ) : (
+            <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: C.textTer }}>—</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Watchlist table ───────────────────────────────────────
+export function WatchlistTable({ watchlist, sentiments, sentimentLoading, onSelect }) {
+  if (!watchlist.length) return <EmptyState Icon={Bookmark} title="No stocks." subtitle="Add tickers to your watchlist." />;
+  return (
+    <div style={{ width: "100%" }}>
+      <div className="wl-header">
+        {["Ticker", "Name", "Price", "Change", "Sentiment"].map(h => (
+          <div key={h} className="label" style={{ fontSize: 10 }}>{h}</div>
+        ))}
+      </div>
+      {watchlist.map((s) => {
+        const isUp  = (s.change ?? 0) >= 0;
+        const sent  = sentiments[s.ticker];
+        const sLoad = sentimentLoading[s.ticker];
+        const sym   = currencySymbol(s.type);
+        return (
+          <div key={s.ticker} className="wl-row" onClick={() => onSelect(s)}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.ticker}</div>
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={s.name}>{s.name}</div>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.text }}>
+              {s.price == null ? "—" : `${sym}${s.price.toLocaleString()}`}
+            </div>
+            <div>
+              {s.change == null ? <span style={{ color: C.textSec }}>—</span> : (
+                <span className={isUp ? "pill-pos" : "pill-neg"} style={{ fontSize: 11 }}>
+                  {isUp ? "▲" : "▼"} {Math.abs(s.change).toFixed(2)}%
+                </span>
+              )}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 96 }}>
+              {sLoad ? (
+                <span style={{ fontSize: 11, color: C.textTer }}>…</span>
+              ) : sent?.score != null ? (
+                <>
+                  <SentimentBar score={sent.score} />
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: sentimentColor(sent.score), minWidth: 28, textAlign: "right" }}>{sent.score}</span>
+                </>
+              ) : <span style={{ fontSize: 11, color: C.textTer }}>—</span>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Chart fallback ────────────────────────────────────────
+function ChartFallback({ ticker, height, reason }) {
+  return (
+    <div style={{ height, width: "100%", background: C.surface2, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 6 }}>
+      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.textSec }}>{ticker}</div>
+      <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: C.textTer }}>{reason}</div>
+    </div>
+  );
+}
+
+// ── TradingView chart (lightweight-charts) ────────────────
+export function TradingViewChart({ ticker, height = 220, days = 180 }) {
+  const containerRef = useRef(null);
+  const chartRef     = useRef(null);
+  const [state, setState] = useState({ status: "loading" });
+  const isValid = typeof ticker === "string" && CHART_VALID_TICKER.test(ticker);
+
+  useEffect(() => {
+    if (!isValid) { setState({ status: "error", reason: "Invalid symbol" }); return; }
+    let cancelled = false;
+    let resizeObserver;
+
+    setState({ status: "loading" });
+    (async () => {
+      try {
+        const { createChart, ColorType, LineStyle } = await import("lightweight-charts");
+        const res = await fetch(`${API_URL}/chart/${encodeURIComponent(ticker)}?days=${days}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const payload = await res.json();
+        if (cancelled) return;
+        if (!payload.ok || !Array.isArray(payload.rows) || !payload.rows.length) {
+          await new Promise(r => setTimeout(r, 4000));
+          if (cancelled) return;
+          const res2 = await fetch(`${API_URL}/chart/${encodeURIComponent(ticker)}?days=${days}`);
+          if (!res2.ok) { setState({ status: "error", reason: "No chart data available" }); return; }
+          const payload2 = await res2.json();
+          if (cancelled) return;
+          if (!payload2.ok || !Array.isArray(payload2.rows) || !payload2.rows.length) {
+            setState({ status: "error", reason: "No chart data available" }); return;
+          }
+          Object.assign(payload, payload2);
+        }
+        const el = containerRef.current;
+        if (!el) return;
+        if (chartRef.current) { chartRef.current.remove(); chartRef.current = null; }
+
+        const chart = createChart(el, {
+          width:  el.clientWidth,
+          height,
+          layout: {
+            background: { type: ColorType.Solid, color: C.surface },
+            textColor: C.textSec,
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 11,
+          },
+          grid: {
+            vertLines: { color: C.border, style: LineStyle.Dashed },
+            horzLines: { color: C.border, style: LineStyle.Dashed },
+          },
+          rightPriceScale: { borderColor: C.border },
+          timeScale:       { borderColor: C.border, timeVisible: false, secondsVisible: false },
+          crosshair: {
+            mode: 1,
+            vertLine: { color: C.textTer, style: LineStyle.Dotted },
+            horzLine: { color: C.textTer, style: LineStyle.Dotted },
+          },
+        });
+        chartRef.current = chart;
+
+        const candles = chart.addCandlestickSeries({
+          upColor: C.pos, downColor: C.neg,
+          borderUpColor: C.pos, borderDownColor: C.neg,
+          wickUpColor: C.pos, wickDownColor: C.neg,
+        });
+        const rows = payload.rows.map(r => ({ time: r.time, open: r.open, high: r.high, low: r.low, close: r.close }));
+        candles.setData(rows);
+
+        if (payload.rows[0]?.volume != null) {
+          const volSeries = chart.addHistogramSeries({
+            priceFormat: { type: "volume" },
+            priceScaleId: "vol",
+          });
+          chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+          volSeries.setData(payload.rows.map(r => ({
+            time: r.time,
+            value: r.volume,
+            color: r.close >= r.open ? "rgba(76,175,125,0.30)" : "rgba(224,92,92,0.30)",
+          })));
+        }
+
+        chart.timeScale().fitContent();
+        setState({ status: "ok" });
+
+        if (typeof ResizeObserver !== "undefined") {
+          resizeObserver = new ResizeObserver(entries => {
+            const w = entries[0]?.contentRect?.width;
+            if (w && chartRef.current) chartRef.current.applyOptions({ width: w });
+          });
+          resizeObserver.observe(el);
+        }
+      } catch {
+        if (!cancelled) setState({ status: "error", reason: "Chart unavailable" });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (resizeObserver) resizeObserver.disconnect();
+      if (chartRef.current) { chartRef.current.remove(); chartRef.current = null; }
+    };
+  }, [ticker, height, days, isValid]);
+
+  if (state.status === "error") return <ChartFallback ticker={ticker} height={height} reason={state.reason} />;
+
+  const tvHref = tvSymbolUrl(ticker);
+  return (
+    <div style={{ position: "relative", height, width: "100%", borderRadius: 10, overflow: "hidden", background: C.surface }}>
+      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+      {tvHref && (
+        <a href={tvHref} target="_blank" rel="noopener noreferrer"
+          title={`Open ${ticker} on TradingView`}
+          className="chart-tv-badge"
+          style={{ position: "absolute", top: 8, left: 10, zIndex: 2, fontSize: 11, padding: "2px 6px", borderRadius: 5, background: "rgba(23,23,26,0.7)", textDecoration: "none" }}>
+          {ticker} <span style={{ opacity: 0.5 }}>↗</span>
+        </a>
+      )}
+      {state.status === "loading" && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 3, display: "flex", alignItems: "center", justifyContent: "center", background: C.surface }}>
+          <LoadingLine message="Loading chart…" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Ticker autocomplete ───────────────────────────────────
+export function TickerAutocomplete({ value, onChange, onSelect, onKeyDown, placeholder, className, style }) {
+  const [open, setOpen]               = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const containerRef                  = useRef(null);
+
+  useEffect(() => {
+    if (!value) { setSuggestions([]); setOpen(false); return; }
+    const q = value.toUpperCase();
+    const filtered = TICKER_LIST.filter(t =>
+      t.ticker.startsWith(q) || t.name.toUpperCase().includes(q)
+    ).slice(0, 8);
+    setSuggestions(filtered);
+    setOpen(filtered.length > 0);
+  }, [value]);
+
+  useEffect(() => {
+    const handler = (e) => { if (!containerRef.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleSelect = (ticker) => {
+    if (onSelect) onSelect(ticker);
+    else onChange({ target: { value: ticker } });
+    setOpen(false);
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", ...style }}>
+      <input className={className} value={value} onChange={onChange} onKeyDown={onKeyDown}
+        placeholder={placeholder} style={{ width: "100%" }} autoComplete="off" />
+      {open && (
+        <div className="ticker-dropdown">
+          {suggestions.map(s => (
+            <button key={s.ticker} className="ticker-dropdown-item"
+              onMouseDown={e => { e.preventDefault(); handleSelect(s.ticker); }}>
+              <span className="ticker-dropdown-symbol">{s.ticker}</span>
+              <span className="ticker-dropdown-name">{s.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Chat bubble ───────────────────────────────────────────
+export function ChatBubble({ msg }) {
+  const isUser  = msg.role === "user";
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(msg.content || "").then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  return (
+    <div className={isUser ? "chat-bubble-user" : "chat-bubble-assistant"} style={{ position: "relative" }}>
+      <div>
+        {msg.content}
+        {!isUser && (
+          <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {msg.sources?.map((s, i) => (
+              <span key={i} style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 20, padding: "2px 10px", fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: C.textSec }}>
+                {s}
+              </span>
+            ))}
+            {msg.responseTime && (
+              <span style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 20, padding: "2px 10px", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.textTer }}>
+                {msg.responseTime}s
+              </span>
+            )}
+            <button
+              onClick={handleCopy}
+              title="Copy response"
+              style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: copied ? C.pos : C.textTer, padding: "2px 4px", display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontFamily: "'DM Sans',sans-serif", transition: "color 150ms" }}
+            >
+              {copied ? <><Check size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Auth modal ────────────────────────────────────────────
+export function AuthModal({ onSuccess }) {
+  const [mode, setMode]         = useState("login");
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError]       = useState("");
+  const [loading, setLoading]   = useState(false);
+
+  const submit = async () => {
+    if (!email || !password) return;
+    setLoading(true); setError("");
+    try {
+      const res  = await fetch(`${API_URL}/${mode}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+      let data = {};
+      try { data = await res.json(); } catch {}
+      if (!res.ok) { setError(data.error || `Server error (${res.status})`); setLoading(false); return; }
+      setToken(data.token); setUser({ email: data.email, user_id: data.user_id }); onSuccess();
+    } catch { setError("Cannot reach server — check your connection"); }
+    setLoading(false);
+  };
+
+  return (
+    <div className="auth-page">
+      <div className="auth-card fade-up">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 32 }}>
+          <div style={{ width: 48, height: 48, background: C.surface2, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${C.border}`, marginBottom: 12 }}>
+            <Aperture size={28} color={C.text} />
+          </div>
+          <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 22, color: C.accent }}>Fintrest</div>
+          <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec, marginTop: 4 }}>Money, made clear.</div>
+        </div>
+
+        <div className="auth-tabs">
+          {[["login","Sign In"],["register","Create Account"]].map(([m, lbl]) => (
+            <button key={m} className={`auth-tab${mode === m ? " active" : ""}`}
+              onClick={() => { setMode(m); setError(""); }}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          <div>
+            <div className="label" style={{ marginBottom: 8 }}>Email</div>
+            <input className="input-line" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" type="email" />
+          </div>
+          <div>
+            <div className="label" style={{ marginBottom: 8 }}>Password</div>
+            <input className="input-line" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" type="password"
+              onKeyDown={e => e.key === "Enter" && submit()} />
+          </div>
+          {error && <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.neg }}>{error}</div>}
+          <button className="auth-submit" onClick={submit} disabled={loading || !email || !password}>
+            {loading ? "…" : mode === "login" ? "Sign In" : "Create Account"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
