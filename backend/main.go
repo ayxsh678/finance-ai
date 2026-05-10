@@ -460,9 +460,6 @@ func isAllowedOrigin(origin string) bool {
 // ── Main ───────────────────────────────────────────────
 
 func main() {
-	initJWTSecret()
-	InitDB()
-
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
@@ -933,19 +930,6 @@ func main() {
 		}
 		c.JSON(http.StatusOK, result)
 	})
-
-	// ── Auth (public) ──────────────────────────────────
-	r.POST("/register", handleRegister)
-	r.POST("/login", handleLogin)
-
-	// ── Protected routes ───────────────────────────────
-	authGroup := r.Group("/")
-	authGroup.Use(AuthMiddleware())
-	{
-		authGroup.GET("/watchlist", handleGetWatchlist)
-		authGroup.POST("/watchlist", handleAddWatchlist)
-		authGroup.DELETE("/watchlist/:ticker", handleDeleteWatchlist)
-	}
 
 	// ── Start poller + server ──────────────────────────
 	startAlertPoller()

@@ -1,12 +1,12 @@
 import { API_URL, C } from "./constants";
 
 // ── Auth helpers ─────────────────────────────────────────
-export const getToken    = () => localStorage.getItem("fintrest_token");
-export const setToken    = (t) => localStorage.setItem("fintrest_token", t);
-export const removeToken = () => localStorage.removeItem("fintrest_token");
-export const getUser     = () => { try { return JSON.parse(localStorage.getItem("fintrest_user")); } catch { return null; } };
-export const setUser     = (u) => localStorage.setItem("fintrest_user", JSON.stringify(u));
-export const removeUser  = () => localStorage.removeItem("fintrest_user");
+export const getFirebaseToken = async () => {
+  const { auth } = await import("./firebase");
+  const user = auth.currentUser;
+  if (!user) return null;
+  return user.getIdToken();
+};
 
 // ── Session helpers ──────────────────────────────────────
 export const getSessionId    = () => { const id = localStorage.getItem("fintrest_session_id"); return id && id !== "undefined" ? id : null; };

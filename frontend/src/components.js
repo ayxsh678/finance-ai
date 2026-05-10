@@ -3,7 +3,9 @@ import { AreaChart, Area, YAxis, ResponsiveContainer } from "recharts";
 import { Bookmark, Copy, Check } from "lucide-react";
 import Aperture from "./Aperture";
 import { C, METRIC_EXPLANATIONS, CHART_VALID_TICKER, TICKER_LIST, API_URL } from "./constants";
-import { generateSparkline, sentimentColor, currencySymbol, maybeTitle, fmt, fmtPct, tvSymbolUrl, setToken, setUser } from "./utils";
+import { generateSparkline, sentimentColor, currencySymbol, maybeTitle, fmt, fmtPct, tvSymbolUrl } from "./utils";
+import { auth, googleProvider } from "./firebase";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 
 // ── Loading line ──────────────────────────────────────────
 export function LoadingLine({ message = "Fetching market data…" }) {
@@ -606,6 +608,20 @@ export function ChatBubble({ msg }) {
 }
 
 // ── Auth modal ────────────────────────────────────────────
+function firebaseErrorMsg(code) {
+  const map = {
+    "auth/user-not-found":       "No account found with this email.",
+    "auth/wrong-password":       "Incorrect password.",
+    "auth/email-already-in-use": "Email already registered.",
+    "auth/weak-password":        "Password must be at least 6 characters.",
+    "auth/invalid-email":        "Invalid email address.",
+    "auth/invalid-credential":   "Invalid email or password.",
+    "auth/too-many-requests":    "Too many attempts. Try again later.",
+    "auth/network-request-failed": "Network error. Check your connection.",
+  };
+  return map[code] || "Authentication failed. Please try again.";
+}
+
 export function AuthModal({ onSuccess }) {
   const [mode, setMode]         = useState("login");
   const [email, setEmail]       = useState("");
@@ -617,12 +633,28 @@ export function AuthModal({ onSuccess }) {
     if (!email || !password) return;
     setLoading(true); setError("");
     try {
-      const res  = await fetch(`${API_URL}/${mode}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
-      let data = {};
-      try { data = await res.json(); } catch {}
-      if (!res.ok) { setError(data.error || `Server error (${res.status})`); setLoading(false); return; }
-      setToken(data.token); setUser({ email: data.email, user_id: data.user_id }); onSuccess();
-    } catch { setError("Cannot reach server — check your connection"); }
+      if (mode === "login") {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+      onSuccess?.();
+    } catch (err) {
+      setError(firebaseErrorMsg(err.code));
+    }
+    setLoading(false);
+  };
+
+  const signInWithGoogle = async () => {
+    setLoading(true); setError("");
+    try {
+      await signInWithPopup(auth, googleProvider);
+      onSuccess?.();
+    } catch (err) {
+      if (err.code !== "auth/popup-closed-by-user") {
+        setError(firebaseErrorMsg(err.code));
+      }
+    }
     setLoading(false);
   };
 
@@ -646,7 +678,7 @@ export function AuthModal({ onSuccess }) {
           ))}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
             <div className="label" style={{ marginBottom: 8 }}>Email</div>
             <input className="input-line" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" type="email" />
@@ -659,6 +691,35 @@ export function AuthModal({ onSuccess }) {
           {error && <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.neg }}>{error}</div>}
           <button className="auth-submit" onClick={submit} disabled={loading || !email || !password}>
             {loading ? "…" : mode === "login" ? "Sign In" : "Create Account"}
+          </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0" }}>
+            <div style={{ flex: 1, height: 1, background: C.border }} />
+            <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.textTer }}>or</span>
+            <div style={{ flex: 1, height: 1, background: C.border }} />
+          </div>
+
+          <button
+            onClick={signInWithGoogle}
+            disabled={loading}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+              padding: "12px 16px", borderRadius: 10, border: `1px solid ${C.border}`,
+              background: C.surface2, color: C.text, cursor: "pointer",
+              fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 500,
+              opacity: loading ? 0.6 : 1, transition: "border-color 0.2s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = C.borderA}
+            onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
+          >
+            <svg width="18" height="18" viewBox="0 0 48 48">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              <path fill="none" d="M0 0h48v48H0z"/>
+            </svg>
+            Continue with Google
           </button>
         </div>
       </div>
