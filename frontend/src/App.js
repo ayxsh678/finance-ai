@@ -11,7 +11,7 @@ import {
 } from "./utils";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
+import { collection, doc, setDoc, deleteDoc, getDoc, onSnapshot } from "firebase/firestore";
 import { AuthModal } from "./components";
 
 import MarketPage    from "./pages/MarketPage";
@@ -68,15 +68,19 @@ export default function App() {
   useEffect(() => {
     const uid = userState?.uid;
     if (!uid || devBypass) return;
+    const userDocRef = doc(db, "users", uid);
     const ref = collection(db, "users", uid, "watchlist");
     const unsub = onSnapshot(ref, async (snap) => {
       if (snap.empty) {
-        // Seed defaults for new user
-        await Promise.all(
-          WATCHLIST_DEFAULT.map(s =>
+        // Only seed defaults on first login — check flag to avoid re-seeding after user clears watchlist
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists() && userSnap.data().watchlistSeeded) return;
+        await Promise.all([
+          setDoc(userDocRef, { watchlistSeeded: true }, { merge: true }),
+          ...WATCHLIST_DEFAULT.map(s =>
             setDoc(doc(db, "users", uid, "watchlist", s.ticker), { name: s.name, base: s.base, type: s.type })
-          )
-        );
+          ),
+        ]);
         return;
       }
       const items = snap.docs.map(d => ({
