@@ -6,10 +6,12 @@ import "./App.css";
 
 import { API_URL, C, WATCHLIST_DEFAULT, NAV_ITEMS, MOBILE_TABS, MORE_SECTIONS } from "./constants";
 import {
-  getToken, removeToken, getUser, setUser, removeUser,
   getSessionId, setSessionId, removeSessionId, startSession, clearSession,
   mkMsg, normalizeSentimentPayload, normalizeComparePayload,
 } from "./utils";
+import { auth, db } from "./firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 import { AuthModal } from "./components";
 
 import MarketPage    from "./pages/MarketPage";
@@ -42,14 +44,53 @@ export default function App() {
 
   // Auth
   const devBypass = process.env.REACT_APP_DEV_BYPASS === "1";
-  const [userState, setUserState] = useState(devBypass ? { email: "dev@local" } : getUser());
-  const [showAuth, setShowAuth]   = useState(devBypass ? false : !getToken());
-  const handleAuthSuccess = () => { setUserState(getUser()); setShowAuth(false); };
-  const handleLogout      = () => { removeToken(); removeUser(); setUserState(null); setShowAuth(true); };
+  const [userState, setUserState] = useState(devBypass ? { email: "dev@local", uid: "dev" } : null);
+  const [authLoading, setAuthLoading] = useState(!devBypass);
+  const [showAuth, setShowAuth]   = useState(false);
+
+  useEffect(() => {
+    if (devBypass) return;
+    return onAuthStateChanged(auth, (user) => {
+      setUserState(user);
+      setShowAuth(!user);
+      setAuthLoading(false);
+    });
+  }, [devBypass]);
+
+  const handleAuthSuccess = () => {};
+  const handleLogout      = () => signOut(auth);
 
   // Watchlist & market
   const [watchlist, setWatchlist]         = useState(WATCHLIST_DEFAULT);
   const [selectedStock, setSelectedStock] = useState(WATCHLIST_DEFAULT[0]);
+
+  // Firestore watchlist sync
+  useEffect(() => {
+    const uid = userState?.uid;
+    if (!uid || devBypass) return;
+    const ref = collection(db, "users", uid, "watchlist");
+    const unsub = onSnapshot(ref, async (snap) => {
+      if (snap.empty) {
+        // Seed defaults for new user
+        await Promise.all(
+          WATCHLIST_DEFAULT.map(s =>
+            setDoc(doc(db, "users", uid, "watchlist", s.ticker), { name: s.name, base: s.base, type: s.type })
+          )
+        );
+        return;
+      }
+      const items = snap.docs.map(d => ({
+        ticker: d.id,
+        name:   d.data().name ?? d.id,
+        base:   d.data().base ?? 0,
+        type:   d.data().type ?? "India",
+        price: null, change: null,
+      }));
+      setWatchlist(items);
+      setSelectedStock(prev => items.find(s => s.ticker === prev.ticker) ?? items[0]);
+    });
+    return unsub;
+  }, [userState?.uid, devBypass]);
   const [chartDays, setChartDays]         = useState(180);
 
   // Chat
@@ -256,6 +297,18 @@ export default function App() {
     } catch {}
   };
 
+  // Firestore watchlist CRUD
+  const addToFirestoreWatchlist = async (ticker, name = ticker, base = 0, type = "India") => {
+    const uid = userState?.uid;
+    if (!uid || devBypass) return;
+    await setDoc(doc(db, "users", uid, "watchlist", ticker.toUpperCase()), { name, base, type });
+  };
+  const removeFromFirestoreWatchlist = async (ticker) => {
+    const uid = userState?.uid;
+    if (!uid || devBypass) return;
+    await deleteDoc(doc(db, "users", uid, "watchlist", ticker.toUpperCase()));
+  };
+
   const addToPortfolio      = (t) => { const v = t.trim().toUpperCase(); if (v) setPortfolio(prev => prev.includes(v) ? prev : [...prev, v]); };
   const removeFromPortfolio = (t) => setPortfolio(prev => prev.filter(x => x !== t));
 
@@ -384,7 +437,8 @@ export default function App() {
 
   // ── Sidebar ────────────────────────────────────────────
   const sidebarCollapsed = isTablet;
-  const userInitial = userState?.email?.length > 0 ? userState.email[0].toUpperCase() : "?";
+  const userEmail   = userState?.email || userState?.displayName || "";
+  const userInitial = userEmail.length > 0 ? userEmail[0].toUpperCase() : "?";
 
   function Sidebar() {
     return (
@@ -408,7 +462,7 @@ export default function App() {
 
         <div className="sidebar-footer">
           <div className="sidebar-avatar">{userInitial}</div>
-          <div className="sidebar-email">{userState?.email || ""}</div>
+          <div className="sidebar-email">{userEmail}</div>
           <button className="sidebar-logout" onClick={handleLogout} title="Sign out">
             <LogOut size={16} />
           </button>
@@ -476,6 +530,14 @@ export default function App() {
   }
 
   // ── Root render ────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <div className="splash-screen">
+        <FintrestMark variant="loop" size={72} color={C.text} />
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Splash — loop mark fades out after ~1.8 s */}
