@@ -142,6 +142,11 @@ export default function App() {
   const [sentimentLoading, setSentimentLoading] = useState({});
   const fetchedSentiments                       = useRef(new Set());
 
+  // Conviction
+  const [convictions, setConvictions]             = useState({});
+  const [convictionLoading, setConvictionLoading] = useState({});
+  const fetchedConvictions                        = useRef(new Set());
+
   // News
   const [newsData, setNewsData]       = useState({});
   const [newsLoading, setNewsLoading] = useState({});
@@ -215,6 +220,22 @@ export default function App() {
     setSentimentLoading(prev => ({ ...prev, [ticker]: false }));
   }, []);
 
+  const fetchConviction = useCallback(async (ticker, name = "") => {
+    if (fetchedConvictions.current.has(ticker)) return;
+    fetchedConvictions.current.add(ticker);
+    setConvictionLoading(prev => ({ ...prev, [ticker]: true }));
+    try {
+      const res  = await fetch(`${API_URL}/conviction/${ticker}?company=${encodeURIComponent(name)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setConvictions(prev => ({ ...prev, [ticker]: data }));
+    } catch {
+      fetchedConvictions.current.delete(ticker);
+      setConvictions(prev => ({ ...prev, [ticker]: null }));
+    }
+    setConvictionLoading(prev => ({ ...prev, [ticker]: false }));
+  }, []);
+
   const fetchNews = useCallback(async (ticker, name = "") => {
     if (fetchedNews.current.has(ticker)) return;
     if (fetchedNewsOrder.current.length >= 50) {
@@ -239,8 +260,9 @@ export default function App() {
   useEffect(() => { watchlist.forEach(s => fetchSentiment(s.ticker, s.name)); }, [watchlist, fetchSentiment]);
   useEffect(() => {
     fetchSentiment(selectedStock.ticker, selectedStock.name);
+    fetchConviction(selectedStock.ticker, selectedStock.name);
     fetchNews(selectedStock.ticker, selectedStock.name);
-  }, [selectedStock.ticker, fetchSentiment, fetchNews]);
+  }, [selectedStock.ticker, fetchSentiment, fetchConviction, fetchNews]);
 
   useEffect(() => {
     if (activeSection === "alerts") {
@@ -517,7 +539,7 @@ export default function App() {
   function renderSection() {
     switch (activeSection) {
       case "market":
-        return <MarketPage isMobile={isMobile} watchlist={watchlist} selectedStock={selectedStock} sentiments={sentiments} sentimentLoading={sentimentLoading} newsData={newsData} newsLoading={newsLoading} chartDays={chartDays} setChartDays={setChartDays} handleSelectStock={handleSelectStock} sendMessage={sendMessage} />;
+        return <MarketPage isMobile={isMobile} watchlist={watchlist} selectedStock={selectedStock} sentiments={sentiments} sentimentLoading={sentimentLoading} convictions={convictions} convictionLoading={convictionLoading} newsData={newsData} newsLoading={newsLoading} chartDays={chartDays} setChartDays={setChartDays} handleSelectStock={handleSelectStock} sendMessage={sendMessage} />;
       case "chat":
         return <ChatPage messages={messages} loading={loading} input={input} setInput={setInput} historyOpen={historyOpen} setHistoryOpen={setHistoryOpen} chatSessions={chatSessions} bottomRef={bottomRef} sendMessage={sendMessage} handleNewChat={handleNewChat} loadChatSession={loadChatSession} />;
       case "watchlist":
@@ -529,7 +551,7 @@ export default function App() {
       case "alerts":
         return <AlertsPage isMobile={isMobile} activeAlerts={activeAlerts} triggeredAlerts={triggeredAlerts} alertTicker={alertTicker} setAlertTicker={setAlertTicker} alertThreshold={alertThreshold} setAlertThreshold={setAlertThreshold} alertDirection={alertDirection} setAlertDirection={setAlertDirection} alertError={alertError} alertCreating={alertCreating} createAlert={createAlert} deleteAlert={deleteAlert} />;
       default:
-        return <MarketPage isMobile={isMobile} watchlist={watchlist} selectedStock={selectedStock} sentiments={sentiments} sentimentLoading={sentimentLoading} newsData={newsData} newsLoading={newsLoading} chartDays={chartDays} setChartDays={setChartDays} handleSelectStock={handleSelectStock} sendMessage={sendMessage} />;
+        return <MarketPage isMobile={isMobile} watchlist={watchlist} selectedStock={selectedStock} sentiments={sentiments} sentimentLoading={sentimentLoading} convictions={convictions} convictionLoading={convictionLoading} newsData={newsData} newsLoading={newsLoading} chartDays={chartDays} setChartDays={setChartDays} handleSelectStock={handleSelectStock} sendMessage={sendMessage} />;
     }
   }
 

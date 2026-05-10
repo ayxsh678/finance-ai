@@ -1,9 +1,10 @@
 import { C, TIME_RANGES, SUGGESTIONS } from "../constants";
 import { currencySymbol } from "../utils";
-import { StockCard, TradingViewChart, SentimentGauge, NewsFeed } from "../components";
+import { StockCard, TradingViewChart, SentimentGauge, ConvictionScore, NewsFeed } from "../components";
 
 export default function MarketPage({
   isMobile, watchlist, selectedStock, sentiments, sentimentLoading,
+  convictions, convictionLoading,
   newsData, newsLoading, chartDays, setChartDays, handleSelectStock, sendMessage,
 }) {
   return (
@@ -58,6 +59,7 @@ export default function MarketPage({
           <TradingViewChart ticker={selectedStock.ticker} height={isMobile ? 180 : 240} days={chartDays} />
         </div>
 
+        <ConvictionScore ticker={selectedStock.ticker} conviction={convictions[selectedStock.ticker]} loading={convictionLoading[selectedStock.ticker] ?? false} />
         <SentimentGauge ticker={selectedStock.ticker} sentiment={sentiments[selectedStock.ticker]} loading={sentimentLoading[selectedStock.ticker] ?? false} />
         <NewsFeed ticker={selectedStock.ticker} news={newsData[selectedStock.ticker] ?? null} loading={newsLoading[selectedStock.ticker] ?? false} />
 

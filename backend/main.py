@@ -33,6 +33,7 @@ from rag.memory import create_session, get_history, append_to_history, clear_ses
 from rag.watchlist_enrich import enrich_watchlist
 from rag.alerts import create_alert, get_alerts, delete_alert, check_alerts
 from rag.sentiment import get_sentiment, get_news_impact
+from rag.conviction import compute_conviction
 from rag.eodhd import get_ohlc
 from rag.india_ohlc import get_india_ohlc
 from rag.forex import detect_forex_query, get_forex_data, get_all_forex_snapshot, CURRENCY_PAIRS
@@ -215,6 +216,19 @@ class Trade(BaseModel):
 class PortfolioAutopsyRequest(BaseModel):
     trades: list[Trade]
 
+class ConvictionIndicator(BaseModel):
+    name:     str
+    subscore: float
+    value:    str
+    label:    str
+    weight:   float
+
+class ConvictionResponse(BaseModel):
+    ticker:    str
+    score:     float
+    label:     str
+    breakdown: list[ConvictionIndicator]
+
 
 # ── Health ─────────────────────────────────────────────
 
@@ -374,6 +388,22 @@ def sentiment(ticker: str, company: str = ""):
         raise HTTPException(status_code=400, detail="Ticker cannot be empty")
     result = get_sentiment(ticker_clean, company_name=company)
     return SentimentResponse(**result)
+
+
+# ── Conviction score ───────────────────────────────────
+
+@app.get("/conviction/{ticker}", response_model=ConvictionResponse)
+def conviction(ticker: str, company: str = ""):
+    ticker_clean = ticker.upper().strip()
+    if not ticker_clean:
+        raise HTTPException(status_code=400, detail="Ticker cannot be empty")
+    result = compute_conviction(ticker_clean, company_name=company)
+    return ConvictionResponse(
+        ticker    = result["ticker"],
+        score     = result["score"],
+        label     = result["label"],
+        breakdown = [ConvictionIndicator(**i) for i in result.get("breakdown", [])],
+    )
 
 
 # ── News with per-article impact ───────────────────────

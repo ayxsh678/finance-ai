@@ -63,7 +63,10 @@ export default function ChatPage({
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
             </button>
-            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: C.text }}>Fintrest Advisor</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, fontWeight: 500, letterSpacing: "0.24em", color: C.textSec, textTransform: "uppercase" }}>AI CO-PILOT · FINTREST</div>
+              <div style={{ fontFamily: "'Bricolage Grotesque','Instrument Sans',sans-serif", fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: "-0.02em" }}>Kyra</div>
+            </div>
           </div>
           <button className="btn-ghost" style={{ fontSize: 12 }} onClick={handleNewChat} disabled={loading}>+ New conversation</button>
         </div>

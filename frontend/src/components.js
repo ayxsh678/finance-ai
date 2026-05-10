@@ -129,6 +129,93 @@ export function SentimentGauge({ ticker, sentiment, loading }) {
   );
 }
 
+// ── Conviction score ──────────────────────────────────────
+export function ConvictionScore({ ticker, conviction, loading }) {
+  const [expanded, setExpanded] = useState(false);
+  const score     = conviction?.score ?? null;
+  const label     = conviction?.label ?? "—";
+  const breakdown = conviction?.breakdown ?? [];
+
+  const barColor = (s) => s >= 7 ? C.pos : s <= 3 ? C.neg : C.neutral;
+  const labelColor = (lbl) => lbl === "BULLISH" ? C.pos : lbl === "BEARISH" ? C.neg : C.neutral;
+  const scoreRing = score == null ? C.border : score >= 60 ? C.pos : score >= 40 ? C.neutral : C.neg;
+
+  return (
+    <div className="card" style={{ padding: "20px 24px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+        <div>
+          <div className="label" style={{ marginBottom: 4 }}>Conviction Score</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.textSec, fontWeight: 500 }}>{ticker}</div>
+        </div>
+        {!loading && score != null && (
+          <div className={score >= 60 ? "pill-pos" : score <= 40 ? "pill-neg" : "pill-neutral"} style={{ fontSize: 11, padding: "3px 10px" }}>
+            {label}
+          </div>
+        )}
+      </div>
+
+      {loading || conviction === undefined ? (
+        <LoadingLine message="Computing conviction…" />
+      ) : score != null ? (
+        <>
+          {/* Score ring */}
+          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 16 }}>
+            <div style={{ position: "relative", width: 80, height: 80, flexShrink: 0 }}>
+              <svg viewBox="0 0 80 80" width="80" height="80">
+                <circle cx="40" cy="40" r="34" fill="none" stroke={C.border} strokeWidth="7" />
+                <circle cx="40" cy="40" r="34" fill="none" stroke={scoreRing} strokeWidth="7"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(score / 100) * (2 * Math.PI * 34)} ${2 * Math.PI * 34}`}
+                  strokeDashoffset={2 * Math.PI * 34 * 0.25}
+                  style={{ transition: "stroke-dasharray 0.8s ease" }} />
+              </svg>
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 22, color: C.text, lineHeight: 1 }}>{Math.round(score)}</div>
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: C.text, marginBottom: 4 }}>{label} Conviction</div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.textSec, lineHeight: 1.5 }}>
+                Based on {breakdown.length} indicators across price, technicals, volume, and sentiment.
+              </div>
+            </div>
+          </div>
+
+          {/* Breakdown toggle */}
+          <button
+            onClick={() => setExpanded(e => !e)}
+            style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 12px", fontSize: 12, color: C.textSec, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", marginBottom: expanded ? 12 : 0, width: "100%", textAlign: "center" }}>
+            {expanded ? "Hide breakdown ↑" : `See all ${breakdown.length} indicators ↓`}
+          </button>
+
+          {expanded && breakdown.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {breakdown.map((ind, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < breakdown.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                  {/* Name */}
+                  <div style={{ width: 150, fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.textSec, flexShrink: 0 }}>{ind.name}</div>
+                  {/* Bar */}
+                  <div style={{ flex: 1, height: 4, background: C.border, borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${(ind.subscore / 10) * 100}%`, background: barColor(ind.subscore), borderRadius: 2, transition: "width 0.5s ease" }} />
+                  </div>
+                  {/* Value */}
+                  <div style={{ width: 140, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: labelColor(ind.label), textAlign: "right", flexShrink: 0 }}>{ind.value}</div>
+                  {/* Subscore */}
+                  <div style={{ width: 24, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.textTer, textAlign: "right", flexShrink: 0 }}>{ind.subscore}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : conviction === null ? (
+        <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec }}>Unable to compute conviction score.</div>
+      ) : (
+        <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec }}>No conviction data available.</div>
+      )}
+    </div>
+  );
+}
+
 // ── News feed ─────────────────────────────────────────────
 export function NewsFeed({ ticker, news, loading }) {
   const [openIdx, setOpenIdx] = useState(null);
