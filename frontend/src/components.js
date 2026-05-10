@@ -727,6 +727,7 @@ export function AuthModal({ onSuccess }) {
       }
       onSuccess?.();
     } catch (err) {
+      console.error("[auth] code:", err.code, "msg:", err.message);
       setError(firebaseErrorMsg(err.code));
     }
     setLoading(false);
