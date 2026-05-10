@@ -589,6 +589,27 @@ func main() {
 		c.JSON(http.StatusOK, result)
 	})
 
+	r.GET("/conviction/:ticker", func(c *gin.Context) {
+		ticker := strings.ToUpper(c.Param("ticker"))
+		company := c.DefaultQuery("company", "")
+		path := "/conviction/" + url.PathEscape(ticker)
+		if company != "" {
+			path += "?company=" + url.QueryEscape(company)
+		}
+		resp, err := httpClient.Get(pythonURL() + path)
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Conviction service unavailable"})
+			return
+		}
+		defer resp.Body.Close()
+		var result interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode conviction data"})
+			return
+		}
+		c.JSON(http.StatusOK, result)
+	})
+
 	r.GET("/news/:ticker", func(c *gin.Context) {
 		ticker := strings.ToUpper(c.Param("ticker"))
 		company := c.DefaultQuery("company", "")
