@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { TrendingUp, MessageSquare, Bookmark, ArrowLeftRight, PieChart, Bell, LogOut, X, MoreHorizontal } from "lucide-react";
 import Aperture from "./Aperture";
+import FintrestMark from "./FintrestMark";
 import "./App.css";
 
 import { API_URL, C, WATCHLIST_DEFAULT, NAV_ITEMS, MOBILE_TABS, MORE_SECTIONS } from "./constants";
@@ -27,6 +28,13 @@ export default function App() {
   }, []);
   const isMobile = windowW < 640;
   const isTablet = windowW >= 640 && windowW < 1024;
+
+  // Splash
+  const [showSplash, setShowSplash] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setShowSplash(false), 1850);
+    return () => clearTimeout(t);
+  }, []);
 
   // Section state
   const [activeSection, setActiveSection] = useState("market");
@@ -382,7 +390,7 @@ export default function App() {
     return (
       <div className={`sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
         <div className="sidebar-brand">
-          <Aperture size={24} color={C.text} />
+          <FintrestMark variant="appnav" size={24} color={C.text} />
           <span className="sidebar-brand-name">Fintrest</span>
         </div>
 
@@ -470,6 +478,13 @@ export default function App() {
   // ── Root render ────────────────────────────────────────
   return (
     <>
+      {/* Splash — loop mark fades out after ~1.8 s */}
+      {showSplash && (
+        <div className="splash-screen">
+          <FintrestMark variant="loop" size={72} color={C.text} />
+        </div>
+      )}
+
       {showAuth && <AuthModal onSuccess={handleAuthSuccess} />}
 
       {/* Triggered notifications */}

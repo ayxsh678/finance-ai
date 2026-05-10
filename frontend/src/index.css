@@ -29,12 +29,21 @@
   --font-ui:      "DM Sans", system-ui, sans-serif;
   --font-mono:    "JetBrains Mono", ui-monospace, monospace;
 
-  /* Motion */
+  /* Motion — generic */
   --ease-standard: cubic-bezier(0.2, 0.0, 0.0, 1.0);
   --ease-out:      cubic-bezier(0.0, 0.0, 0.2, 1.0);
   --dur-fast:      150ms;
   --dur-base:      200ms;
   --dur-slow:      300ms;
+
+  /* Motion — brand named curves (from motion spec v.01) */
+  --ease-precision:   cubic-bezier(0.22, 0.61, 0.36, 1.00);
+  --ease-compounding: cubic-bezier(0.65, 0.00, 0.35, 1.00);
+  --ease-snap:        cubic-bezier(0.45, 0.00, 0.00, 1.00);
+  --ease-recede:      cubic-bezier(0.55, 0.05, 0.68, 0.53);
+
+  /* Signal green — brand mark accent */
+  --signal: #1FB57A;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -133,7 +142,87 @@ input::placeholder { color: var(--text-ter); }
 .fade-up    { animation: fadeUp    0.28s var(--ease-out) both; }
 .slide-right{ animation: slideRight 0.2s var(--ease-out) both; }
 
-/* Reduced motion */
+/* ── Fintrest Mark — stroke base ────────────────────────── */
+.mark-svg .stroke {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  stroke-width: 14;
+  stroke-dashoffset: 0;
+}
+.mark-svg .stem    { stroke-dasharray: 85; }
+.mark-svg .top-bar { stroke-dasharray: 65; }
+.mark-svg .mid-bar { stroke-dasharray: 56; }
+.mark-svg .diag    { stroke-dasharray: 51; }
+
+/* ── Intro keyframes (1.08 s, ease-precision) ────────────── */
+@keyframes draw-stem { from { stroke-dashoffset: 85; } to { stroke-dashoffset: 0; } }
+@keyframes draw-top  { from { stroke-dashoffset: 65; } to { stroke-dashoffset: 0; } }
+@keyframes draw-mid  { from { stroke-dashoffset: 56; } to { stroke-dashoffset: 0; } }
+@keyframes draw-diag { from { stroke-dashoffset: 51; } to { stroke-dashoffset: 0; } }
+
+.mark-svg.intro.playing .stem    { animation: draw-stem 360ms var(--ease-precision)   0ms backwards; }
+.mark-svg.intro.playing .top-bar { animation: draw-top  320ms var(--ease-precision) 200ms backwards; }
+.mark-svg.intro.playing .mid-bar { animation: draw-mid  320ms var(--ease-precision) 380ms backwards; }
+.mark-svg.intro.playing .diag    { animation: draw-diag 480ms var(--ease-precision) 600ms backwards; }
+
+/* ── Loop keyframes (2.8 s, ease-compounding, infinite) ──── */
+@keyframes loop-stem {
+  0%   { stroke-dashoffset:  85; }  28%  { stroke-dashoffset:   0; }
+  62%  { stroke-dashoffset:   0; }  90%  { stroke-dashoffset: -85; }
+  100% { stroke-dashoffset: -85; }
+}
+@keyframes loop-top {
+  0%   { stroke-dashoffset:  65; }  28%  { stroke-dashoffset:   0; }
+  62%  { stroke-dashoffset:   0; }  90%  { stroke-dashoffset: -65; }
+  100% { stroke-dashoffset: -65; }
+}
+@keyframes loop-mid {
+  0%   { stroke-dashoffset:  56; }  28%  { stroke-dashoffset:   0; }
+  62%  { stroke-dashoffset:   0; }  90%  { stroke-dashoffset: -56; }
+  100% { stroke-dashoffset: -56; }
+}
+@keyframes loop-diag {
+  0%   { stroke-dashoffset:  51; }  28%  { stroke-dashoffset:   0; }
+  62%  { stroke-dashoffset:   0; }  90%  { stroke-dashoffset: -51; }
+  100% { stroke-dashoffset: -51; }
+}
+
+.mark-svg.loop.playing .stem    { animation: loop-stem 2800ms var(--ease-compounding)   0ms infinite; }
+.mark-svg.loop.playing .top-bar { animation: loop-top  2800ms var(--ease-compounding) 100ms infinite; }
+.mark-svg.loop.playing .mid-bar { animation: loop-mid  2800ms var(--ease-compounding) 200ms infinite; }
+.mark-svg.loop.playing .diag    { animation: loop-diag 2800ms var(--ease-compounding) 300ms infinite; }
+
+/* ── Success (diagonal pulses signal-green) ─────────────── */
+.mark-svg.success.playing .stroke { stroke-dashoffset: 0; }
+@keyframes success-pulse {
+  0%, 100% { stroke: currentColor; }
+  20%, 50%  { stroke: var(--signal); }
+}
+.mark-svg.success.playing .diag { animation: success-pulse 1800ms var(--ease-precision) infinite; }
+
+/* ── App Nav (0.62 s snap, for sidebar / tab transitions) ── */
+.mark-svg.appnav.playing .stem    { animation: draw-stem 220ms var(--ease-snap)   0ms backwards; }
+.mark-svg.appnav.playing .top-bar { animation: draw-top  180ms var(--ease-snap) 120ms backwards; }
+.mark-svg.appnav.playing .mid-bar { animation: draw-mid  180ms var(--ease-snap) 220ms backwards; }
+.mark-svg.appnav.playing .diag    { animation: draw-diag 280ms var(--ease-snap) 340ms backwards; }
+
+/* ── Splash screen ──────────────────────────────────────── */
+@keyframes splashFadeOut { to { opacity: 0; pointer-events: none; } }
+
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: splashFadeOut 400ms var(--ease-recede) 1.4s both;
+}
+
+/* ── Reduced motion ─────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration:       0.01ms !important;
