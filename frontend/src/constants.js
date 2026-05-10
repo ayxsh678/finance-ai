@@ -28,10 +28,20 @@ export const C = {
 export const WATCHLIST_DEFAULT = [
   { ticker: "RELIANCE.NS",   name: "Reliance Ind.",  price: null, change: null, base: 1430, type: "India" },
   { ticker: "TCS.NS",        name: "TCS",            price: null, change: null, base: 2465, type: "India" },
-  { ticker: "HDFCBANK.NS",   name: "HDFC Bank",      price: null, change: null, base: 778, type: "India" },
+  { ticker: "HDFCBANK.NS",   name: "HDFC Bank",      price: null, change: null, base: 778,  type: "India" },
   { ticker: "INFY.NS",       name: "Infosys",        price: null, change: null, base: 1167, type: "India" },
   { ticker: "ICICIBANK.NS",  name: "ICICI Bank",     price: null, change: null, base: 1279, type: "India" },
   { ticker: "SBIN.NS",       name: "SBI",            price: null, change: null, base: 788,  type: "India" },
+  { ticker: "BHARTIARTL.NS", name: "Bharti Airtel",  price: null, change: null, base: 1820, type: "India" },
+  { ticker: "ITC.NS",        name: "ITC",            price: null, change: null, base: 455,  type: "India" },
+  { ticker: "LT.NS",         name: "L&T",            price: null, change: null, base: 3720, type: "India" },
+  { ticker: "AXISBANK.NS",   name: "Axis Bank",      price: null, change: null, base: 1180, type: "India" },
+  { ticker: "BAJFINANCE.NS", name: "Bajaj Finance",  price: null, change: null, base: 8850, type: "India" },
+  { ticker: "HCLTECH.NS",    name: "HCL Tech",       price: null, change: null, base: 1620, type: "India" },
+  { ticker: "TATAMOTORS.NS", name: "Tata Motors",    price: null, change: null, base: 705,  type: "India" },
+  { ticker: "WIPRO.NS",      name: "Wipro",          price: null, change: null, base: 252,  type: "India" },
+  { ticker: "ADANIENT.NS",   name: "Adani Ent.",     price: null, change: null, base: 2520, type: "India" },
+  { ticker: "ZOMATO.NS",     name: "Zomato",         price: null, change: null, base: 220,  type: "India" },
 ];
 
 export const SUGGESTIONS = [
