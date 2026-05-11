@@ -57,7 +57,7 @@ export default function App() {
     return onAuthStateChanged(auth, async (user) => {
       setUserState(user);
       if (user) {
-        const snap = await getDoc(doc(db, "allowlist", user.email));
+        const snap = await getDoc(doc(db, "allowList", user.email));
         setAllowedStatus(snap.exists());
       } else {
         setAllowedStatus(null);
