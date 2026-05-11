@@ -119,7 +119,21 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
         avg_volume_30d = hist_30d["Volume"].mean() if not hist_30d.empty else 0
         latest_volume  = hist["Volume"].iloc[-1]
 
-        # yfinance volume often empty/zero for NSE on cloud IPs — try all known keys
+        # fast_info uses v8/finance/quote — more reliable on cloud IPs than .info
+        try:
+            fi = stock.fast_info
+            if not latest_volume or latest_volume <= 0:
+                fv = getattr(fi, "last_volume", None)
+                if fv and fv > 0:
+                    latest_volume = fv
+            if not avg_volume_30d or avg_volume_30d <= 0:
+                fa = getattr(fi, "three_month_average_volume", None)
+                if fa and fa > 0:
+                    avg_volume_30d = fa
+        except Exception:
+            pass
+
+        # .info dict fallback — different keys across yfinance versions/regions
         if not latest_volume or latest_volume <= 0:
             for key in ("regularMarketVolume", "volume", "currentVolume"):
                 v = info.get(key)
