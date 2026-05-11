@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   TrendingUp, Sparkles, PieChart, Target, Newspaper,
   Bell, ShieldCheck, Zap, ArrowRight, ChevronRight,
-  BarChart2, Lock, RefreshCw,
+  BarChart2, Lock, RefreshCw, Eye, Server, KeyRound, Check,
 } from "lucide-react";
 import FintrestMark from "./FintrestMark";
 
@@ -54,10 +54,30 @@ const FEATURES = [
 ];
 
 const TRUST_ITEMS = [
-  { icon: Lock,      label: "Read-only data",    desc: "No trading. No custody. Your money stays at your broker." },
-  { icon: ShieldCheck, label: "Firebase Auth",   desc: "Google-grade authentication. Email + Google OAuth." },
-  { icon: RefreshCw, label: "Live data sources", desc: "yfinance · EODHD · Finnhub · NewsAPI. Always fresh." },
-  { icon: Zap,       label: "AI-native speed",   desc: "Groq-powered inference. Answers in under 2 seconds." },
+  {
+    icon: Eye,
+    label: "Zero custody. Always.",
+    desc: "Fintrest never connects to your broker, never executes trades, and never holds funds. We are a pure intelligence layer — read-only market data, full stop.",
+    proof: "No brokerage OAuth. No trade API. No exceptions.",
+  },
+  {
+    icon: KeyRound,
+    label: "Google-grade identity",
+    desc: "Authentication is handled entirely by Firebase Auth — the same infrastructure securing millions of Google accounts. We never see or store your password.",
+    proof: "OAuth 2.0 · Email magic links · Session tokens encrypted at rest",
+  },
+  {
+    icon: Server,
+    label: "Your portfolio, your device",
+    desc: "Holdings you enter stay in your browser session. We do not persist portfolio data on our servers. No spreadsheet of your finances lives anywhere we control.",
+    proof: "No server-side portfolio storage · No PII retained",
+  },
+  {
+    icon: ShieldCheck,
+    label: "Encrypted in transit",
+    desc: "Every request between your browser, our API, and third-party data sources travels over TLS 1.3. No plaintext. No exceptions. HTTPS enforced everywhere.",
+    proof: "TLS 1.3 · HSTS · Strict transport security headers",
+  },
 ];
 
 // ── Subcomponents ──────────────────────────────────────────
@@ -309,28 +329,65 @@ function KyraShowcase() {
 
 function Trust() {
   return (
-    <section id="trust" className="ln-section">
+    <section id="trust" className="ln-section ln-trust-section">
       <div className="ln-container">
-        <div className="ln-section-label">Built with trust</div>
-        <h2 className="ln-h2">
-          Your data stays<br />
-          <em>where it belongs.</em>
-        </h2>
+        {/* Header */}
+        <div className="ln-trust-header">
+          <div className="ln-section-label">Security &amp; Privacy</div>
+          <h2 className="ln-h2" style={{ maxWidth: 560 }}>
+            Your data stays<br />
+            <em>where it belongs.</em>
+          </h2>
+          <p className="ln-trust-subtitle">
+            Fintrest is a read-only intelligence platform. We analyse markets.
+            We do not touch your money, your broker, or your identity.
+          </p>
+        </div>
+
+        {/* Read-only banner */}
+        <div className="ln-readonly-banner">
+          <Lock size={14} />
+          <span>Read-only by architecture — not just policy</span>
+        </div>
+
+        {/* Cards */}
         <div className="ln-trust-grid">
           {TRUST_ITEMS.map((t) => (
             <div key={t.label} className="ln-trust-card">
               <div className="ln-trust-icon">
-                <t.icon size={16} />
+                <t.icon size={15} />
               </div>
-              <div>
+              <div className="ln-trust-body">
                 <div className="ln-trust-title">{t.label}</div>
                 <div className="ln-trust-desc">{t.desc}</div>
+                <div className="ln-trust-proof">
+                  <Check size={10} />
+                  {t.proof}
+                </div>
               </div>
             </div>
           ))}
         </div>
+
+        {/* Tech spec strip */}
+        <div className="ln-spec-strip">
+          {[
+            { label: "TLS 1.3", sub: "All connections" },
+            { label: "Firebase Auth", sub: "Identity layer" },
+            { label: "No trade API", sub: "Read-only always" },
+            { label: "Gemini 2.0", sub: "AI inference" },
+            { label: "No PII stored", sub: "Zero portfolio data" },
+          ].map(({ label, sub }) => (
+            <div key={label} className="ln-spec-item">
+              <div className="ln-spec-label">{label}</div>
+              <div className="ln-spec-sub">{sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Data sources */}
         <div className="ln-sources-row">
-          <span className="ln-sources-label">Data powered by</span>
+          <span className="ln-sources-label">Market data</span>
           {["yfinance", "EODHD", "Finnhub", "NewsAPI", "CoinGecko"].map((s) => (
             <span key={s} className="ln-source-chip">{s}</span>
           ))}
