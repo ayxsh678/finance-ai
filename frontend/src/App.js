@@ -619,7 +619,7 @@ export default function App() {
   }
 
   // Allowlist — only approved emails can access the app
-  const ALLOWED_EMAILS = ["ayushverma567@gmail.com"];
+  const ALLOWED_EMAILS = ["ayushverma567@gmail.com", "devanshverma901@gmail.com"];
   if (!devBypass && !ALLOWED_EMAILS.includes(userState.email)) {
     return (
       <div style={{ position: "fixed", inset: 0, background: "var(--bg)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24, textAlign: "center" }}>
