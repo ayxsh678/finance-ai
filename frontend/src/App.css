@@ -2433,6 +2433,10 @@
 @media (max-width: 639px) {
   .port-holding-form { flex-direction: column; gap: 8px; }
   .port-holding-form > * { width: 100% !important; }
+  /* very small phones: stack holding form fully */
+  @media (max-width: 390px) {
+    .port-holding-grid { grid-template-columns: 1fr !important; }
+  }
 }
 
 /* ── Alerts page — mobile ─────────────────────────────── */
@@ -2443,11 +2447,33 @@
 /* ── Card + form globals ──────────────────────────────── */
 @media (max-width: 639px) {
   .card { padding: 14px 14px; border-radius: 10px; }
-  /* ensure all scrollable page areas use momentum scroll */
   [style*="overflow-y: auto"],
   [style*="overflowY: auto"] { -webkit-overflow-scrolling: touch; }
-  /* min touch target */
-  button { min-height: 36px; }
+  button { min-height: 44px; }
+
+  /* ── Chat page — mobile ─────────────────────────────── */
+  .chat-messages { padding: 16px 14px 8px; }
+  .chat-bubble-user > div,
+  .chat-bubble-assistant > div { font-size: 13px; padding: 10px 13px; }
+  .chat-input-bar { padding: 10px 12px; }
+  .chat-history-panel { width: min(85%, 300px); }
+
+  /* ── Watchlist page — mobile ──────────────────────────*/
+  .wl-page-header { padding: 14px 14px 10px !important; }
+
+  /* ── Portfolio table — horizontal scroll ─────────────*/
+  .port-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .port-table-scroll table { min-width: 360px; }
+
+  /* ── Kyra panel — safe area + full-screen ────────────*/
+  .kyra-panel { top: env(safe-area-inset-top, 0px); }
+  .kyra-input-bar { padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+
+  /* ── Overview page bottom padding ─────────────────── */
+  .ov-page { padding-bottom: 24px; }
+
+  /* ── Quick Kyra input on overview ──────────────────── */
+  .ov-quick-input { font-size: 13px; }
 }
 
 /* ── Sidebar — tablet auto-collapse ──────────────────────

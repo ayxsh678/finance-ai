@@ -73,7 +73,7 @@ export default function PortfolioPage({
           {/* Holdings input form */}
           <div className="card" style={{ marginBottom: 16 }}>
             <div className="label" style={{ marginBottom: 12 }}>Add Holding</div>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "2fr 1fr 1fr auto", gap: 8, alignItems: "end" }}>
+            <div className="port-holding-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "2fr 1fr 1fr auto", gap: 8, alignItems: "end" }}>
               <div>
                 <div className="label" style={{ fontSize: 10, marginBottom: 6 }}>Ticker</div>
                 <TickerAutocomplete className="input-box" value={holdingInput.ticker}
@@ -109,7 +109,7 @@ export default function PortfolioPage({
 
           {/* Holdings table */}
           {holdings.length > 0 && (
-            <div className="card" style={{ marginBottom: 16, padding: 0, overflow: "hidden" }}>
+            <div className="card port-table-scroll" style={{ marginBottom: 16, padding: 0, overflow: "hidden" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${C.border}` }}>

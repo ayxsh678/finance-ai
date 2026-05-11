@@ -82,7 +82,7 @@ export default function KyraPanel({
 
   return (
     <>
-      {!isOpen && (
+      {!isOpen && activeSection !== "chat" && (
         <button className="kyra-fab" onClick={onToggle} title="Ask Kyra">
           <Sparkles size={20} />
         </button>
