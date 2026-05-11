@@ -52,7 +52,7 @@ app = FastAPI(title="Fintrest - Python Service")
 
 @app.on_event("startup")
 def validate_config():
-    missing = [k for k in ("GROQ_API_KEY",) if not os.getenv(k)]
+    missing = [k for k in ("GEMINI_API_KEY",) if not os.getenv(k)]
     if missing:
         logger.warning("Missing required env vars: %s — related features will degrade.", ", ".join(missing))
     optional = [k for k in ("NEWS_API_KEY",) if not os.getenv(k)]

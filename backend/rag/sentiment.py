@@ -13,8 +13,8 @@ from cachetools import TTLCache
 
 logger = logging.getLogger(__name__)
 
-GROQ_API_KEY   = os.getenv("GROQ_API_KEY")
-GROQ_URL       = "https://api.groq.com/openai/v1/chat/completions"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_URL     = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 MAX_RETRIES    = 3
 BASE_BACKOFF   = 1.0
 MAX_BACKOFF    = 6.0
@@ -225,17 +225,17 @@ def _fetch_google_news_rss(search_term: str, base_ticker: str) -> list[dict]:
 
 def _groq_post(payload: dict) -> dict | None:
     """Shared Groq HTTP call with retry. Returns parsed JSON or None."""
-    if not GROQ_API_KEY:
-        logger.error("[Groq] GROQ_API_KEY not configured")
+    if not GEMINI_API_KEY:
+        logger.error("[Groq] GEMINI_API_KEY not configured")
         return None
     
     headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Authorization": f"Bearer {GEMINI_API_KEY}",
         "Content-Type":  "application/json",
     }
     for attempt in range(MAX_RETRIES):
         try:
-            resp = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
+            resp = requests.post(GEMINI_URL, headers=headers, json=payload, timeout=30)
         except requests.RequestException as e:
             logger.warning("[Groq] network error (attempt %d): %s", attempt + 1, e)
             if attempt < MAX_RETRIES - 1:
@@ -266,7 +266,7 @@ def _groq_post(payload: dict) -> dict | None:
                      resp.reason or "Unknown", error_body)
         
         if resp.status_code == 403:
-            logger.critical("[Groq] 403 Forbidden - Check your GROQ_API_KEY is valid and has necessary permissions")
+            logger.critical("[Groq] 403 Forbidden - Check your GEMINI_API_KEY is valid and has necessary permissions")
             return None
 
     return None
@@ -482,9 +482,9 @@ def _score_with_groq(ticker: str, headlines: list[str]) -> tuple[float | None, s
     if not headlines:
         logger.info("[sentiment] no headlines for %s; returning insufficient data", ticker)
         return None, "Insufficient Data"
-    if not GROQ_API_KEY:
+    if not GEMINI_API_KEY:
         score, label = _heuristic_score(headlines)
-        logger.warning("[sentiment] ⚠️ GROQ_API_KEY missing for %s; using heuristic score=%s label=%s", ticker, score, label)
+        logger.warning("[sentiment] ⚠️ GEMINI_API_KEY missing for %s; using heuristic score=%s label=%s", ticker, score, label)
         return score, label
 
     headlines_text = "\n".join(f"- {h}" for h in headlines[:15])
@@ -510,7 +510,7 @@ Respond ONLY with the JSON object. No markdown."""
 
     logger.debug("[sentiment] calling Groq for %s with %d headlines", ticker, len(headlines))
     data = _groq_post({
-        "model":       "llama-3.3-70b-versatile",
+        "model":       "gemini-2.0-flash",
         "messages":    [{"role": "user", "content": prompt}],
         "max_tokens":  150,
         "temperature": 0.1,
@@ -542,7 +542,7 @@ def _analyze_impact_with_groq(
     ticker: str,
     articles: list[dict]
 ) -> dict:
-    if not GROQ_API_KEY or not articles:
+    if not GEMINI_API_KEY or not articles:
         return {}
 
     articles_text = "\n".join(
@@ -590,7 +590,7 @@ Return ONLY this JSON (no markdown):
 }}"""
 
     data = _groq_post({
-        "model":       "llama-3.3-70b-versatile",
+        "model":       "gemini-2.0-flash",
         "messages":    [{"role": "user", "content": prompt}],
         "max_tokens":  1500,
         "temperature": 0.2,

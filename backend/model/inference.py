@@ -8,11 +8,11 @@ from model.prompts import GENERAL_QA, PORTFOLIO_ANALYSIS, EARNINGS_BRIEF, PORTFO
 
 logger = logging.getLogger(__name__)
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_URL     = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
-PRIMARY_MODEL   = "llama-3.3-70b-versatile"
-FALLBACK_MODEL  = "llama-3.1-8b-instant"
+PRIMARY_MODEL   = "gemini-2.0-flash"
+FALLBACK_MODEL  = "gemini-2.0-flash-lite"
 MAX_RETRIES     = 5
 BASE_BACKOFF    = 1.0
 MAX_BACKOFF     = 15.0
@@ -42,24 +42,24 @@ def _attempt_call(model: str, messages: list[dict], max_tokens: int,
         "temperature": temperature,
     }
     headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Authorization": f"Bearer {GEMINI_API_KEY}",
         "Content-Type": "application/json",
     }
 
-    last_error = "Error: Groq request failed. Please try again."
+    last_error = "Error: Gemini request failed. Please try again."
     for attempt in range(retries):
         try:
-            response = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
+            response = requests.post(GEMINI_URL, headers=headers, json=payload, timeout=30)
         except requests.exceptions.Timeout:
-            logger.warning("Groq timeout on %s attempt %d/%d", model, attempt + 1, retries)
-            last_error = "Error: Request to Groq timed out. Please try again."
+            logger.warning("Gemini timeout on %s attempt %d/%d", model, attempt + 1, retries)
+            last_error = "Error: Request to Gemini timed out. Please try again."
             if attempt < retries - 1:
                 _sleep_backoff(attempt)
                 continue
             return None, last_error, True
         except requests.exceptions.ConnectionError as e:
-            logger.warning("Groq connection error on %s attempt %d/%d: %s", model, attempt + 1, retries, e)
-            last_error = "Error: Could not reach Groq. Please try again."
+            logger.warning("Gemini connection error on %s attempt %d/%d: %s", model, attempt + 1, retries, e)
+            last_error = "Error: Could not reach Gemini. Please try again."
             if attempt < retries - 1:
                 _sleep_backoff(attempt)
                 continue
@@ -72,33 +72,33 @@ def _attempt_call(model: str, messages: list[dict], max_tokens: int,
             try:
                 return response.json()["choices"][0]["message"]["content"], "", False
             except (KeyError, IndexError, ValueError):
-                return None, "Error: Unexpected response format from Groq.", False
+                return None, "Error: Unexpected response format from Gemini.", False
 
         if status == 401:
-            return None, "Error: Invalid GROQ_API_KEY.", False
+            return None, "Error: Invalid GEMINI_API_KEY.", False
 
         if status in RETRY_STATUSES:
             last_error = (
-                "Error: Groq rate limit hit. Please wait a moment and retry."
-                if status == 429 else f"Error: Groq API returned {status}"
+                "Error: Gemini rate limit hit. Please wait a moment and retry."
+                if status == 429 else f"Error: Gemini API returned {status}"
             )
             if attempt < retries - 1:
-                logger.warning("Groq %s returned %d on attempt %d/%d — retrying",
+                logger.warning("Gemini %s returned %d on attempt %d/%d — retrying",
                                model, status, attempt + 1, retries)
                 _sleep_backoff(attempt, response.headers.get("Retry-After"))
                 continue
             return None, last_error, True
 
-        return None, f"Error: Groq API returned {status}", False
+        return None, f"Error: Gemini API returned {status}", False
 
     return None, last_error, True
 
 
-def _call_groq(messages: list[dict], max_tokens: int = 1024,
+def _call_gemini(messages: list[dict], max_tokens: int = 1024,
                temperature: float = 0.2, model: str = PRIMARY_MODEL) -> str:
-    """Single shared Groq call — all functions route through here."""
-    if not GROQ_API_KEY:
-        return "Error: GROQ_API_KEY not set"
+    """Single shared Gemini call — all functions route through here."""
+    if not GEMINI_API_KEY:
+        return "Error: GEMINI_API_KEY not set"
 
     retries = MAX_RETRIES if model == PRIMARY_MODEL else 2
     content, err, should_fallback = _attempt_call(
@@ -117,7 +117,7 @@ def _call_groq(messages: list[dict], max_tokens: int = 1024,
         err = fb_err or err
 
     if "rate limit" in err.lower() or "429" in err:
-        return "Error: Groq is busy right now. Please try again in a moment."
+        return "Error: Gemini is busy right now. Please try again in a moment."
     return err
 
 
@@ -134,7 +134,7 @@ def generate_response(question: str, context: str,
         messages.extend(history)
     messages.append({"role": "user", "content": user_message})
 
-    return _call_groq(messages)
+    return _call_gemini(messages)
 
 
 def generate_portfolio_summary(tickers: list[str], context: str) -> str:
@@ -155,7 +155,7 @@ Analyze this portfolio and provide:
 Be compressed and direct. Traders don't have time for padding.
 Add a disclaimer at the end."""
 
-    return _call_groq([
+    return _call_gemini([
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user",   "content": user_message},
     ])
@@ -179,7 +179,7 @@ Compare these two stocks and provide:
 Be compressed and direct. No padding.
 Add a disclaimer at the end."""
 
-    return _call_groq([
+    return _call_gemini([
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user",   "content": user_message},
     ], model=FALLBACK_MODEL)
@@ -205,7 +205,7 @@ Analyze this currency pair and provide:
 
 Be compressed and direct. Add a disclaimer."""
 
-    return _call_groq([
+    return _call_gemini([
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user",   "content": user_message},
     ])
@@ -227,7 +227,7 @@ Write a 3–4 sentence portfolio intelligence brief for this investor.
 Cover: overall portfolio health, the most important risk to act on, and one concrete next step.
 Be direct. Format numbers in Indian notation (₹ lakhs/crores)."""
 
-    return _call_groq([
+    return _call_gemini([
         {"role": "system", "content": PORTFOLIO_ANALYSIS},
         {"role": "user",   "content": user_message},
     ], max_tokens=512)
@@ -252,7 +252,7 @@ Forward P/E: {forward_pe}
 Write a pre-earnings intelligence brief for {ticker}.
 Follow the research note structure. Be specific about what numbers to watch."""
 
-    return _call_groq([
+    return _call_gemini([
         {"role": "system", "content": EARNINGS_BRIEF},
         {"role": "user",   "content": user_message},
     ], max_tokens=600)
@@ -266,7 +266,7 @@ def generate_portfolio_autopsy(trades_context: str) -> str:
 Write a portfolio autopsy narrative. Cover what worked, what failed, why, and concrete lessons.
 Be honest — the goal is actionable learning, not validation."""
 
-    return _call_groq([
+    return _call_gemini([
         {"role": "system", "content": PORTFOLIO_AUTOPSY},
         {"role": "user",   "content": user_message},
     ], max_tokens=700)
@@ -298,7 +298,7 @@ BEGINNER TAKEAWAY:
 One actionable sentence. What should a beginner do with this information?
 {data_context}"""
 
-    return _call_groq(
+    return _call_gemini(
         messages=[
             {
                 "role": "system",
