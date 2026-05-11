@@ -385,13 +385,6 @@ function Trust() {
           ))}
         </div>
 
-        {/* Data sources */}
-        <div className="ln-sources-row">
-          <span className="ln-sources-label">Market data</span>
-          {["yfinance", "EODHD", "Finnhub", "NewsAPI", "CoinGecko"].map((s) => (
-            <span key={s} className="ln-source-chip">{s}</span>
-          ))}
-        </div>
       </div>
     </section>
   );
