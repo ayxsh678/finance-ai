@@ -266,6 +266,19 @@ export default function App() {
     setNewsLoading(prev => ({ ...prev, [ticker]: false }));
   }, []);
 
+  const fetchQuote = useCallback(async (ticker) => {
+    setStockQuoteLoading(true);
+    setStockQuote(null);
+    try {
+      const res = await fetch(`${API_URL}/quote/${encodeURIComponent(ticker)}`);
+      if (res.ok) {
+        const { quote } = await res.json();
+        setStockQuote(quote);
+      }
+    } catch {}
+    finally { setStockQuoteLoading(false); }
+  }, []);
+
   useEffect(() => { watchlist.forEach(s => fetchSentiment(s.ticker, s.name)); }, [watchlist, fetchSentiment]);
   useEffect(() => {
     fetchSentiment(selectedStock.ticker, selectedStock.name);
@@ -463,19 +476,6 @@ export default function App() {
     await clearSession();
     setMessages([mkMsg("assistant", "New conversation started. What would you like to know?", { sources: [] })]);
   };
-
-  const fetchQuote = useCallback(async (ticker) => {
-    setStockQuoteLoading(true);
-    setStockQuote(null);
-    try {
-      const res = await fetch(`${API_URL}/quote/${encodeURIComponent(ticker)}`);
-      if (res.ok) {
-        const { quote } = await res.json();
-        setStockQuote(quote);
-      }
-    } catch {}
-    finally { setStockQuoteLoading(false); }
-  }, []);
 
   const handleSelectStock = (stock) => {
     setSelectedStock(stock);
