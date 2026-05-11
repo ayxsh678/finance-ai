@@ -119,17 +119,22 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
         avg_volume_30d = hist_30d["Volume"].mean() if not hist_30d.empty else 0
         latest_volume  = hist["Volume"].iloc[-1]
 
-        # yfinance volume often empty/zero for NSE on cloud IPs — fix independently
+        # yfinance volume often empty/zero for NSE on cloud IPs — try all known keys
         if not latest_volume or latest_volume <= 0:
-            info_cur = info.get("regularMarketVolume")
-            if info_cur and info_cur > 0:
-                latest_volume = info_cur
+            for key in ("regularMarketVolume", "volume", "currentVolume"):
+                v = info.get(key)
+                if v and v > 0:
+                    latest_volume = v
+                    break
 
         if not avg_volume_30d or avg_volume_30d <= 0:
-            info_avg = info.get("averageVolume") or info.get("averageVolume10days")
-            if info_avg and info_avg > 0:
-                avg_volume_30d = info_avg
-            else:
+            for key in ("averageVolume", "averageVolume10days", "averageDailyVolume3Month",
+                        "averageDailyVolume10Day", "threeMonthAverageVolume"):
+                v = info.get(key)
+                if v and v > 0:
+                    avg_volume_30d = v
+                    break
+            if not avg_volume_30d or avg_volume_30d <= 0:
                 try:
                     fallback_avg = eodhd_get_avg_volume(ticker)
                     if fallback_avg and fallback_avg > 0:

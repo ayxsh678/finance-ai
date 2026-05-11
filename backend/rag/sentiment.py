@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_URL     = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-MAX_RETRIES    = 3
+MAX_RETRIES    = 2
 BASE_BACKOFF   = 1.0
 MAX_BACKOFF    = 6.0
 RETRY_STATUSES = {429, 500, 502, 503, 504}

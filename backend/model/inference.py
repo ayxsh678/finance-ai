@@ -13,9 +13,10 @@ GEMINI_URL     = "https://generativelanguage.googleapis.com/v1beta/openai/chat/c
 
 PRIMARY_MODEL   = "gemini-2.0-flash"
 FALLBACK_MODEL  = "gemini-2.0-flash-lite"
-MAX_RETRIES     = 5
-BASE_BACKOFF    = 1.0
-MAX_BACKOFF     = 15.0
+FALLBACK_MODEL2 = "gemini-1.5-flash"
+MAX_RETRIES     = 2
+BASE_BACKOFF    = 0.5
+MAX_BACKOFF     = 8.0
 RETRY_STATUSES  = {429, 500, 502, 503, 504}
 
 
@@ -109,15 +110,24 @@ def _call_gemini(messages: list[dict], max_tokens: int = 1024,
 
     if should_fallback:
         logger.warning("Primary model exhausted — falling back to %s", FALLBACK_MODEL)
-        content, fb_err, _ = _attempt_call(
+        content, fb_err, should_fallback2 = _attempt_call(
             FALLBACK_MODEL, messages, max_tokens, temperature, retries=2
         )
         if content is not None:
             return content
         err = fb_err or err
 
+        if should_fallback2:
+            logger.warning("Second model exhausted — falling back to %s", FALLBACK_MODEL2)
+            content, fb2_err, _ = _attempt_call(
+                FALLBACK_MODEL2, messages, max_tokens, temperature, retries=2
+            )
+            if content is not None:
+                return content
+            err = fb2_err or err
+
     if "rate limit" in err.lower() or "429" in err:
-        return "Error: Gemini is busy right now. Please try again in a moment."
+        return "Error: AI is rate-limited right now. Please wait a moment and retry."
     return err
 
 
