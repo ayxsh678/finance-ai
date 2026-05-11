@@ -618,6 +618,23 @@ export default function App() {
     );
   }
 
+  // Allowlist — only approved emails can access the app
+  const ALLOWED_EMAILS = ["ayushverma567@gmail.com"];
+  if (!devBypass && !ALLOWED_EMAILS.includes(userState.email)) {
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "var(--bg)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24, textAlign: "center" }}>
+        <div style={{ fontSize: 32 }}>🔒</div>
+        <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 22, color: "var(--text)" }}>Closed Beta</div>
+        <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: "var(--text-sec)", maxWidth: 320 }}>
+          Fintrest is currently invite-only. Your account <strong style={{ color: "var(--text)" }}>{userState.email}</strong> is not on the access list.
+        </div>
+        <button onClick={() => signOut(auth)} style={{ marginTop: 8, padding: "10px 24px", borderRadius: 8, background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-sec)", fontFamily: "'DM Sans',sans-serif", fontSize: 13, cursor: "pointer" }}>
+          Sign out
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Splash — loop mark fades out after ~1.8 s */}
