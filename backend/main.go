@@ -438,7 +438,7 @@ func startAlertPoller() {
 
 func isAllowedOrigin(origin string) bool {
 	// Always allow localhost for development
-	if origin == "http://localhost:3000" || origin == "http://localhost:5173" {
+	if origin == "http://localhost:3000" || origin == "http://localhost:3001" || origin == "http://localhost:5173" {
 		return true
 	}
 	// Allow all Vercel preview deploys for this project

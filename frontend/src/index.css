@@ -2,48 +2,50 @@
    Swiss minimalism meets Bloomberg density. Dark-only. */
 
 :root {
-  /* Surfaces */
-  --bg:        #0F0F11;
-  --surface:   #17171A;
-  --surface2:  #1E1E24;
+  /* Surfaces — neutral charcoal, no blue tint */
+  --bg:        #0A0A0B;
+  --surface:   #111113;
+  --surface2:  #1C1C1F;
 
   /* Borders */
-  --border:    #2A2A32;
-  --border-a:  #3D3D4A;
+  --border:    #2C2C2E;
+  --border-a:  #3A3A3C;
 
   /* Text */
-  --text:      #F0EEE8;
-  --text-sec:  #8C8A9A;
-  --text-ter:  #5A5868;
+  --text:      #F5F5F7;
+  --text-sec:  #8E8E93;
+  --text-ter:  #48484A;
 
-  /* Accent — gold, max 3 elements per screen */
-  --accent:    #C8A96E;
+  /* Accent — emerald */
+  --accent:    #10B981;
+  --accent-dim: rgba(16,185,129,0.12);
+
+  /* Gold — P&L highlight only */
+  --gold:      #FFD60A;
 
   /* Semantic */
-  --pos:       #4CAF7D;
-  --neg:       #E05C5C;
-  --neutral:   #B8A860;
+  --pos:       #30D158;
+  --neg:       #FF453A;
+  --neutral:   #FFD60A;
 
   /* Typography */
   --font-display: "DM Serif Display", Georgia, serif;
   --font-ui:      "DM Sans", system-ui, sans-serif;
   --font-mono:    "JetBrains Mono", ui-monospace, monospace;
 
-  /* Motion — generic */
+  /* Motion */
   --ease-standard: cubic-bezier(0.2, 0.0, 0.0, 1.0);
   --ease-out:      cubic-bezier(0.0, 0.0, 0.2, 1.0);
   --dur-fast:      150ms;
   --dur-base:      200ms;
   --dur-slow:      300ms;
 
-  /* Motion — brand named curves (from motion spec v.01) */
   --ease-precision:   cubic-bezier(0.22, 0.61, 0.36, 1.00);
   --ease-compounding: cubic-bezier(0.65, 0.00, 0.35, 1.00);
   --ease-snap:        cubic-bezier(0.45, 0.00, 0.00, 1.00);
   --ease-recede:      cubic-bezier(0.55, 0.05, 0.68, 0.53);
 
-  /* Signal green — brand mark accent */
-  --signal: #1FB57A;
+  --signal: #10B981;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -90,7 +92,7 @@ body {
 }
 
 /* Selection */
-::selection { background: rgba(200,169,110,0.25); color: var(--text); }
+::selection { background: rgba(16,185,129,0.2); color: var(--text); }
 
 /* Reset common elements */
 button, input, select, textarea {
@@ -120,7 +122,7 @@ input::placeholder { color: var(--text-ter); }
 
 @keyframes flashPos {
   0%, 100% { background: transparent; }
-  40%       { background: rgba(76, 175, 125, 0.15); }
+  40%       { background: rgba(16, 185, 129, 0.15); }
 }
 
 @keyframes flashNeg {

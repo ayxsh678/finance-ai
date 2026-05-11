@@ -11,20 +11,20 @@ export const API_URL =
 
 // ── Color tokens ────────────────────────────────────────
 export const C = {
-  bg:       "#080D1A",
-  surface:  "#0D1526",
-  surface2: "#131F35",
-  border:   "#1E2D4A",
-  borderA:  "#2A3F60",
-  text:     "#F0EEE8",
-  textSec:  "#8C8A9A",
-  textTer:  "#5A5868",
+  bg:       "#0A0A0B",
+  surface:  "#111113",
+  surface2: "#1C1C1F",
+  border:   "#2C2C2E",
+  borderA:  "#3A3A3C",
+  text:     "#F5F5F7",
+  textSec:  "#8E8E93",
+  textTer:  "#48484A",
   accent:   "#10B981",
-  accentDim:"rgba(16,185,129,0.15)",
-  gold:     "#C8A96E",
-  pos:      "#10B981",
-  neg:      "#EF4444",
-  neutral:  "#C8A96E",
+  accentDim:"rgba(16,185,129,0.12)",
+  gold:     "#FFD60A",
+  pos:      "#30D158",
+  neg:      "#FF453A",
+  neutral:  "#FFD60A",
 };
 
 export const WATCHLIST_DEFAULT = [

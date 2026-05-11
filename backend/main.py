@@ -67,6 +67,7 @@ app.add_middleware(
         _allowed_origin,
         "https://finance-ai-8qu9.vercel.app",
         "http://localhost:3000",
+        "http://localhost:3001",
         "http://localhost:5173",
     ],
     allow_origin_regex=r"https://finance-ai-8qu9\.vercel\.app",
