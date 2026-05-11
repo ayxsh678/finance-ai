@@ -47,15 +47,21 @@ export default function App() {
 
   // Auth
   const devBypass = process.env.REACT_APP_DEV_BYPASS === "1";
-  const [userState, setUserState] = useState(devBypass ? { email: "dev@local", uid: "dev" } : null);
+  const [userState, setUserState]     = useState(devBypass ? { email: "dev@local", uid: "dev" } : null);
   const [authLoading, setAuthLoading] = useState(!devBypass);
-  const [showAuth, setShowAuth]   = useState(false);
+  const [showAuth, setShowAuth]       = useState(false);
+  const [allowedStatus, setAllowedStatus] = useState(null); // null=checking, true=ok, false=blocked
 
   useEffect(() => {
     if (devBypass) return;
-    return onAuthStateChanged(auth, (user) => {
+    return onAuthStateChanged(auth, async (user) => {
       setUserState(user);
-      // Don't auto-open auth modal — landing page CTAs trigger it
+      if (user) {
+        const snap = await getDoc(doc(db, "allowlist", user.email));
+        setAllowedStatus(snap.exists());
+      } else {
+        setAllowedStatus(null);
+      }
       setAuthLoading(false);
     });
   }, [devBypass]);
@@ -618,9 +624,11 @@ export default function App() {
     );
   }
 
-  // Allowlist — only approved emails can access the app
-  const ALLOWED_EMAILS = ["ayushverma567@gmail.com", "devanshverma901@gmail.com"];
-  if (!devBypass && !ALLOWED_EMAILS.includes(userState.email)) {
+  // Firestore allowlist check
+  if (!devBypass && allowedStatus === null) {
+    return <div style={{ position: "fixed", inset: 0, background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ color: "var(--text-sec)", fontFamily: "var(--font-ui)", fontSize: 14 }}>Verifying access…</div></div>;
+  }
+  if (!devBypass && allowedStatus === false) {
     return (
       <div style={{ position: "fixed", inset: 0, background: "var(--bg)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24, textAlign: "center" }}>
         <div style={{ fontSize: 32 }}>🔒</div>
