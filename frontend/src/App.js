@@ -646,7 +646,7 @@ export default function App() {
         </div>
       )}
 
-      <div style={{ display: "flex", height: "100vh", background: C.bg, color: C.text, overflow: "hidden" }}>
+      <div style={{ display: "flex", height: "100dvh", background: C.bg, color: C.text, overflow: "hidden" }}>
         {/* Sidebar (non-mobile) */}
         {!isMobile && Sidebar()}
 

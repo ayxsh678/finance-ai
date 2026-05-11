@@ -48,7 +48,11 @@
   --signal: #10B981;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  /* iOS momentum scroll on any overflow-y: auto element */
+  -webkit-overflow-scrolling: touch;
+}
 
 html, body, #root {
   height: 100%;

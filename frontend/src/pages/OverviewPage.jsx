@@ -196,6 +196,7 @@ export default function OverviewPage({
   const portfolioValue = analysisResult?.total_value_inr ?? null;
 
   return (
+    <div style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
     <div className="ov-page">
       {/* Header */}
       <div className="ov-header">
@@ -324,6 +325,7 @@ export default function OverviewPage({
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 }
