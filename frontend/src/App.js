@@ -43,7 +43,7 @@ export default function App() {
 
   // Section state
   const [activeSection, setActiveSection] = useState("overview");
-  const [mobileTab, setMobileTab]         = useState("market");
+  const [mobileTab, setMobileTab]         = useState("overview");
 
   // Auth
   const devBypass = process.env.REACT_APP_DEV_BYPASS === "1";
@@ -480,7 +480,7 @@ export default function App() {
   const handleSelectStock = (stock) => {
     setSelectedStock(stock);
     setActiveSection("market");
-    if (isMobile) setMobileTab("market");
+    if (isMobile) setMobileTab("market");  // market tab when stock selected
     fetchQuote(stock.ticker);
   };
 
@@ -544,7 +544,7 @@ export default function App() {
             onClick={() => {
               setMobileTab(id);
               if (id === "more") {
-                if (!MORE_SECTIONS.includes(activeSection)) setActiveSection("compare");
+                if (!MORE_SECTIONS.includes(activeSection)) setActiveSection("watchlist");
               } else {
                 setActiveSection(id);
               }
@@ -560,7 +560,7 @@ export default function App() {
 
   // ── Mobile "More" sub-nav ─────────────────────────────
   function MobileMoreNav() {
-    const sections = [{ id: "compare", label: "Compare" }, { id: "portfolio", label: "Portfolio" }, { id: "alerts", label: "Alerts" }];
+    const sections = [{ id: "watchlist", label: "Watchlist" }, { id: "compare", label: "Compare" }, { id: "portfolio", label: "Portfolio" }, { id: "alerts", label: "Alerts" }];
     return (
       <div style={{ display: "flex", gap: 6, padding: "10px 16px", borderBottom: `1px solid ${C.border}`, background: C.bg }}>
         {sections.map(({ id, label }) => (

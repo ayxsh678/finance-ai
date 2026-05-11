@@ -2318,3 +2318,154 @@
   display: flex;
   gap: 2px;
 }
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE — global breakpoint overrides
+   Mobile   : max 639px
+   Tablet   : 640px – 1023px
+   Desktop  : 1024px+
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Root layout ──────────────────────────────────────── */
+.app-root {
+  display: flex;
+  height: 100%;
+  height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* ── Mobile bottom nav ────────────────────────────────── */
+.mobile-nav {
+  display: flex;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  /* safe area for iPhone home bar */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mobile-nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 4px;
+  min-height: 56px;
+  background: none;
+  border: none;
+  color: var(--text-ter);
+  font-size: 10px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: color 150ms;
+}
+.mobile-nav-btn.active { color: var(--accent); }
+.mobile-nav-btn:active { opacity: 0.7; }
+
+/* ── Watchlist table — mobile ─────────────────────────── */
+@media (max-width: 639px) {
+  .wl-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .wl-header,
+  .wl-row {
+    grid-template-columns: minmax(80px, 1fr) minmax(72px, 0.9fr) minmax(64px, 0.8fr);
+    padding: 0 12px;
+    column-gap: 8px;
+  }
+  /* hide name + sentiment cols on very small screens */
+  .wl-col-name,
+  .wl-col-sentiment { display: none; }
+}
+
+/* ── Market page — mobile ─────────────────────────────── */
+@media (max-width: 639px) {
+  /* header badges + actions stack */
+  .mkt-header-top { flex-wrap: wrap; gap: 8px; }
+  .mkt-actions { flex-wrap: wrap; gap: 4px; }
+  .mkt-action-btn { font-size: 11px; padding: 4px 8px; }
+
+  /* price row wraps */
+  .mkt-price-row { gap: 8px; }
+  .mkt-price { font-size: 26px; }
+
+  /* stats strip: horizontal scroll */
+  .mkt-stats-strip { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
+  .mkt-stat-chip { flex-shrink: 0; }
+
+  /* header card padding */
+  .mkt-header-card { padding: 14px 16px; }
+}
+
+/* ── Market page — tablet ─────────────────────────────── */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .mkt-price { font-size: 30px; }
+  .mkt-stats-strip { flex-wrap: wrap; }
+}
+
+/* ── Overview page — tablet ───────────────────────────── */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .ov-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .ov-main-grid { grid-template-columns: 1fr; }
+  .ov-page { padding: 20px 20px 28px; }
+}
+
+/* ── Overview page — mobile ───────────────────────────── */
+@media (max-width: 639px) {
+  .ov-page { padding: 14px 12px 20px; gap: 14px; }
+  .ov-kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .ov-kpi-value { font-size: 16px; }
+  .ov-greeting { font-size: 18px; }
+  .ov-main-grid { grid-template-columns: 1fr; gap: 12px; }
+  .ov-section { padding: 12px; }
+  .ov-compare-cta { margin-top: 8px; padding: 12px; }
+  .ov-market-status { display: none; }  /* hide on tiny phones */
+  .ov-mover-bar-wrap { display: none; } /* bar takes too much space */
+}
+
+/* ── Compare page — mobile ────────────────────────────── */
+@media (max-width: 639px) {
+  .cmp-inputs { flex-direction: column; gap: 10px; }
+  .cmp-vs-divider { display: none; }
+}
+
+/* ── Portfolio page — mobile ──────────────────────────── */
+@media (max-width: 639px) {
+  .port-holding-form { flex-direction: column; gap: 8px; }
+  .port-holding-form > * { width: 100% !important; }
+}
+
+/* ── Alerts page — mobile ─────────────────────────────── */
+@media (max-width: 639px) {
+  .alert-form-row { flex-direction: column; gap: 8px; }
+}
+
+/* ── Card + form globals ──────────────────────────────── */
+@media (max-width: 639px) {
+  .card { padding: 14px 14px; border-radius: 10px; }
+  /* ensure all scrollable page areas use momentum scroll */
+  [style*="overflow-y: auto"],
+  [style*="overflowY: auto"] { -webkit-overflow-scrolling: touch; }
+  /* min touch target */
+  button { min-height: 36px; }
+}
+
+/* ── Sidebar — tablet auto-collapse ──────────────────────
+   Handled in JS (isTablet → sidebarCollapsed=true).
+   CSS just ensures icon-only layout stays correct.      */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .sidebar { width: 64px !important; min-width: 64px !important; }
+  .sidebar-brand-name,
+  .nav-item-label,
+  .sidebar-email,
+  .sidebar-logout { display: none !important; }
+  .sidebar-brand { justify-content: center; }
+  .nav-item { justify-content: center; padding: 0; border-left-width: 0; border-bottom: 2px solid transparent; }
+  .nav-item.active { border-bottom-color: var(--accent); }
+  .sidebar-footer { justify-content: center; padding: 14px 0; }
+}
+
+/* ── Large desktop — max content width ───────────────────*/
+@media (min-width: 1440px) {
+  .ov-page { max-width: 1200px; }
+}

@@ -76,13 +76,13 @@ export const NAV_ITEMS = [
 ];
 
 export const MOBILE_TABS = [
+  { id: "overview",  label: "Home",      Icon: LayoutDashboard },
   { id: "market",    label: "Market",    Icon: TrendingUp      },
   { id: "chat",      label: "Chat",      Icon: MessageSquare   },
-  { id: "watchlist", label: "Watchlist", Icon: Bookmark        },
   { id: "more",      label: "More",      Icon: MoreHorizontal  },
 ];
 
-export const MORE_SECTIONS = ["compare", "portfolio", "alerts"];
+export const MORE_SECTIONS = ["watchlist", "compare", "portfolio", "alerts"];
 
 // ── Chart helpers ─────────────────────────────────────────
 export const CHART_VALID_TICKER = /^[A-Za-z0-9._:&\-]{1,20}$/;
