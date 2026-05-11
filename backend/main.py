@@ -31,6 +31,7 @@ from rag.portfolio import build_portfolio_context, extract_tickers_from_query, g
 from rag.comparison import build_comparison_context, extract_comparison_tickers, get_comparison_data
 from rag.memory import create_session, get_history, append_to_history, clear_session
 from rag.watchlist_enrich import enrich_watchlist
+from rag.india_stocks import get_india_stock_data
 from rag.alerts import create_alert, get_alerts, delete_alert, check_alerts
 from rag.sentiment import get_sentiment, get_news_impact
 from rag.conviction import compute_conviction
@@ -332,6 +333,21 @@ def stock(ticker: str):
     if not ticker_clean:
         raise HTTPException(status_code=400, detail="Ticker cannot be empty")
     return StockResponse(ticker=ticker_clean, data=get_stock_data(ticker_clean))
+
+
+@app.get("/quote/{ticker}")
+def quote(ticker: str):
+    """Rich quote for a single ticker — used by the Market page header."""
+    t = ticker.upper().strip()
+    if not t:
+        raise HTTPException(status_code=400, detail="Ticker cannot be empty")
+    if t.endswith(".NS") or t.endswith(".BO"):
+        data = get_india_stock_data(t, as_dict=True)
+    else:
+        data = get_stock_data(t)
+    if isinstance(data, dict) and data.get("error"):
+        raise HTTPException(status_code=404, detail=data["error"])
+    return {"ticker": t, "quote": data}
 
 
 # ── Chart (OHLC for self-hosted lightweight-charts) ────

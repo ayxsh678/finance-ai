@@ -66,6 +66,8 @@ export default function App() {
   // Watchlist & market
   const [watchlist, setWatchlist]         = useState(WATCHLIST_DEFAULT);
   const [selectedStock, setSelectedStock] = useState(WATCHLIST_DEFAULT[0]);
+  const [stockQuote, setStockQuote]       = useState(null);
+  const [stockQuoteLoading, setStockQuoteLoading] = useState(false);
 
   // Firestore watchlist sync
   useEffect(() => {
@@ -269,7 +271,8 @@ export default function App() {
     fetchSentiment(selectedStock.ticker, selectedStock.name);
     fetchConviction(selectedStock.ticker, selectedStock.name);
     fetchNews(selectedStock.ticker, selectedStock.name);
-  }, [selectedStock.ticker, fetchSentiment, fetchConviction, fetchNews]);
+    fetchQuote(selectedStock.ticker);
+  }, [selectedStock.ticker, fetchSentiment, fetchConviction, fetchNews, fetchQuote]);
 
   useEffect(() => {
     if (activeSection === "alerts") {
@@ -461,10 +464,24 @@ export default function App() {
     setMessages([mkMsg("assistant", "New conversation started. What would you like to know?", { sources: [] })]);
   };
 
+  const fetchQuote = useCallback(async (ticker) => {
+    setStockQuoteLoading(true);
+    setStockQuote(null);
+    try {
+      const res = await fetch(`${API_URL}/quote/${encodeURIComponent(ticker)}`);
+      if (res.ok) {
+        const { quote } = await res.json();
+        setStockQuote(quote);
+      }
+    } catch {}
+    finally { setStockQuoteLoading(false); }
+  }, []);
+
   const handleSelectStock = (stock) => {
     setSelectedStock(stock);
     setActiveSection("market");
     if (isMobile) setMobileTab("market");
+    fetchQuote(stock.ticker);
   };
 
   const activeAlerts    = alerts.filter(a => !a.triggered);
@@ -566,7 +583,7 @@ export default function App() {
       case "overview":
         return <OverviewPage isMobile={isMobile} watchlist={watchlist} selectedStock={selectedStock} handleSelectStock={handleSelectStock} sentiments={sentiments} activeAlerts={activeAlerts} holdings={holdings} analysisResult={analysisResult} sendMessage={sendMessage} loading={loading} setActiveSection={setActiveSection} onAskKyra={onAskKyra} />;
       case "market":
-        return <MarketPage isMobile={isMobile} watchlist={watchlist} selectedStock={selectedStock} sentiments={sentiments} sentimentLoading={sentimentLoading} convictions={convictions} convictionLoading={convictionLoading} newsData={newsData} newsLoading={newsLoading} chartDays={chartDays} setChartDays={setChartDays} handleSelectStock={handleSelectStock} sendMessage={sendMessage} />;
+        return <MarketPage isMobile={isMobile} watchlist={watchlist} selectedStock={selectedStock} sentiments={sentiments} sentimentLoading={sentimentLoading} convictions={convictions} convictionLoading={convictionLoading} newsData={newsData} newsLoading={newsLoading} chartDays={chartDays} setChartDays={setChartDays} handleSelectStock={handleSelectStock} sendMessage={sendMessage} stockQuote={stockQuote} stockQuoteLoading={stockQuoteLoading} setActiveSection={setActiveSection} />;
       case "chat":
         return <ChatPage messages={messages} loading={loading} input={input} setInput={setInput} historyOpen={historyOpen} setHistoryOpen={setHistoryOpen} chatSessions={chatSessions} bottomRef={bottomRef} sendMessage={sendMessage} handleNewChat={handleNewChat} loadChatSession={loadChatSession} />;
       case "watchlist":

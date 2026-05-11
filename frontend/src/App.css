@@ -2108,3 +2108,213 @@
   .ov-greeting { font-size: 18px; }
 }
 .ln-footer-links a:hover { color: var(--text); }
+
+/* ── Market Page Header Polish ───────────────────────── */
+.mkt-header-card {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* badges + actions row */
+.mkt-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mkt-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.mkt-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: "DM Mono", monospace;
+}
+.mkt-badge--exchange {
+  background: rgba(16,185,129,0.12);
+  color: var(--accent);
+  border: 1px solid rgba(16,185,129,0.25);
+}
+.mkt-badge--type {
+  background: var(--surface2);
+  color: var(--text-sec);
+  border: 1px solid var(--border);
+}
+
+/* action buttons */
+.mkt-actions {
+  display: flex;
+  gap: 6px;
+}
+.mkt-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-sec);
+  font-size: 12px;
+  font-family: "DM Sans", sans-serif;
+  cursor: pointer;
+  transition: border-color 150ms, color 150ms, background 150ms;
+  white-space: nowrap;
+}
+.mkt-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(16,185,129,0.06);
+}
+
+/* ticker + name */
+.mkt-header-main { display: flex; align-items: flex-start; }
+.mkt-header-left { display: flex; flex-direction: column; gap: 6px; }
+.mkt-ticker-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.mkt-ticker {
+  font-family: "DM Mono", "JetBrains Mono", monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.mkt-name {
+  font-size: 13px;
+  color: var(--text-sec);
+}
+
+/* price + change */
+.mkt-price-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.mkt-price {
+  font-family: "DM Serif Display", Georgia, serif;
+  font-size: 34px;
+  color: var(--text);
+  line-height: 1;
+}
+.mkt-change-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mkt-change-pct {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: "DM Mono", monospace;
+  padding: 3px 9px;
+  border-radius: 6px;
+}
+.mkt-change-pct.pos { color: var(--pos); background: rgba(16,185,129,0.1); }
+.mkt-change-pct.neg { color: var(--neg); background: rgba(239,68,68,0.1); }
+.mkt-change-abs {
+  font-size: 13px;
+  font-family: "DM Mono", monospace;
+}
+.mkt-change-abs.pos { color: var(--pos); }
+.mkt-change-abs.neg { color: var(--neg); }
+.mkt-change-period {
+  font-size: 10px;
+  color: var(--text-ter);
+  font-family: "DM Mono", monospace;
+  background: var(--surface2);
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+/* stats strip */
+.mkt-stats-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.mkt-stat-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 80px;
+}
+.mkt-stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-ter);
+}
+.mkt-stat-value {
+  font-family: "DM Mono", monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* 52W range bar */
+.mkt-52w-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mkt-52w-end-label {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  color: var(--text-ter);
+  white-space: nowrap;
+}
+.mkt-52w-track {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  position: relative;
+}
+.mkt-52w-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--neg), var(--pos));
+  border-radius: 99px;
+}
+.mkt-52w-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* time pills row */
+.mkt-time-pills {
+  display: flex;
+  gap: 2px;
+}

@@ -512,6 +512,27 @@ func main() {
 		c.JSON(http.StatusOK, getStockData(ticker))
 	})
 
+	// ── Quote (rich header data) ────────────────────────
+	r.GET("/quote/:ticker", func(c *gin.Context) {
+		ticker := strings.ToUpper(strings.TrimSpace(c.Param("ticker")))
+		if ticker == "" || len(ticker) > 20 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticker"})
+			return
+		}
+		resp, err := httpClient.Get(pythonURL() + "/quote/" + url.PathEscape(ticker))
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Quote service unavailable"})
+			return
+		}
+		defer resp.Body.Close()
+		var result interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode quote"})
+			return
+		}
+		c.JSON(resp.StatusCode, result)
+	})
+
 	// ── Chart (OHLC) ───────────────────────────────────
 	// Backs the self-hosted lightweight-charts component (replaces the
 	// TradingView widget for NSE/BSE where TV shows a licensing modal).

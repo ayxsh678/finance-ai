@@ -1,12 +1,60 @@
+import { MessageSquare, ArrowLeftRight, Bell, TrendingUp, TrendingDown } from "lucide-react";
 import { C, TIME_RANGES, SUGGESTIONS } from "../constants";
-import { currencySymbol } from "../utils";
+import { currencySymbol, fmtInr } from "../utils";
 import { StockCard, TradingViewChart, SentimentGauge, ConvictionScore, NewsFeed } from "../components";
+
+function StatChip({ label, value, highlight }) {
+  return (
+    <div className="mkt-stat-chip">
+      <span className="mkt-stat-label">{label}</span>
+      <span className="mkt-stat-value" style={highlight ? { color: highlight } : undefined}>{value}</span>
+    </div>
+  );
+}
+
+function ExchangeBadge({ ticker, type }) {
+  const exchange = ticker.endsWith(".NS") ? "NSE" : ticker.endsWith(".BO") ? "BSE" : type === "crypto" ? "CRYPTO" : "NYSE";
+  return <span className="mkt-badge mkt-badge--exchange">{exchange}</span>;
+}
+
+function fmtMarketCap(v) {
+  if (v == null) return "—";
+  if (v >= 1e12) return `₹${(v / 1e12).toFixed(2)}T`;
+  if (v >= 1e9)  return `₹${(v / 1e9).toFixed(2)}B`;
+  if (v >= 1e7)  return `₹${(v / 1e7).toFixed(2)}Cr`;
+  return `₹${v.toLocaleString("en-IN")}`;
+}
+
+function week52Bar(price, low, high) {
+  if (price == null || low == null || high == null || high === low) return null;
+  return Math.min(100, Math.max(0, ((price - low) / (high - low)) * 100));
+}
 
 export default function MarketPage({
   isMobile, watchlist, selectedStock, sentiments, sentimentLoading,
   convictions, convictionLoading,
   newsData, newsLoading, chartDays, setChartDays, handleSelectStock, sendMessage,
+  stockQuote, stockQuoteLoading, setActiveSection,
 }) {
+  const sym    = currencySymbol(selectedStock.type);
+  const change = selectedStock.change ?? 0;
+  const pos    = change >= 0;
+
+  // Prefer live quote data over watchlist price for abs change calc
+  const price      = selectedStock.price;
+  const prevClose  = stockQuote?.prev_close ?? null;
+  const absChange  = price != null && prevClose != null ? price - prevClose : null;
+
+  const week52H = stockQuote?.week52_high ?? null;
+  const week52L = stockQuote?.week52_low  ?? null;
+  const mktCap  = stockQuote?.market_cap  ?? null;
+  const pe      = stockQuote?.pe_ratio    ?? null;
+  const relVol  = stockQuote?.rel_volume  ?? null;
+
+  const w52pct  = week52Bar(price, week52L, week52H);
+
+  const displayTicker = selectedStock.ticker.replace(".NS", "").replace(".BO", "");
+
   return (
     <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
       {/* Stock list */}
@@ -25,29 +73,98 @@ export default function MarketPage({
 
       {/* Chart + detail */}
       <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? 16 : 24, display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* Stock header */}
-        <div className="card" style={{ padding: "20px 24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-            <div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.textSec, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-                {selectedStock.ticker} · {selectedStock.type}
-              </div>
-              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 16, color: C.text, marginBottom: 8 }}>{selectedStock.name}</div>
-              <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 36, color: C.text, lineHeight: 1 }}>
-                {selectedStock.price == null ? "—" : `${currencySymbol(selectedStock.type)}${selectedStock.price.toLocaleString()}`}
-              </div>
+
+        {/* ── Polished Stock Header ─────────────────────── */}
+        <div className="card mkt-header-card">
+
+          {/* Row 1: badges + actions */}
+          <div className="mkt-header-top">
+            <div className="mkt-badges">
+              <ExchangeBadge ticker={selectedStock.ticker} type={selectedStock.type} />
+              <span className="mkt-badge mkt-badge--type">{selectedStock.type}</span>
             </div>
-            <div style={{ textAlign: "right", paddingTop: 4 }}>
-              {selectedStock.change != null && (
-                <span className={(selectedStock.change ?? 0) >= 0 ? "pill-pos" : "pill-neg"}>
-                  {(selectedStock.change ?? 0) >= 0 ? "▲" : "▼"} {Math.abs(selectedStock.change ?? 0).toFixed(2)}%
-                </span>
-              )}
+            <div className="mkt-actions">
+              <button
+                className="mkt-action-btn"
+                onClick={() => sendMessage(`Give me a quick Kyra analysis of ${selectedStock.ticker} — should I buy, hold, or sell?`)}
+                title="Ask Kyra"
+              >
+                <MessageSquare size={13} />
+                Ask Kyra
+              </button>
+              <button
+                className="mkt-action-btn"
+                onClick={() => setActiveSection("compare")}
+                title="Compare"
+              >
+                <ArrowLeftRight size={13} />
+                Compare
+              </button>
+              <button
+                className="mkt-action-btn"
+                onClick={() => setActiveSection("alerts")}
+                title="Set Alert"
+              >
+                <Bell size={13} />
+                Alert
+              </button>
             </div>
           </div>
 
+          {/* Row 2: ticker + name + price */}
+          <div className="mkt-header-main">
+            <div className="mkt-header-left">
+              <div className="mkt-ticker-row">
+                <span className="mkt-ticker">{displayTicker}</span>
+                <span className="mkt-name">{selectedStock.name}</span>
+              </div>
+              <div className="mkt-price-row">
+                <span className="mkt-price">
+                  {price == null ? "—" : `${sym}${price.toLocaleString("en-IN")}`}
+                </span>
+                {price != null && (
+                  <div className="mkt-change-group">
+                    <span className={`mkt-change-pct${pos ? " pos" : " neg"}`}>
+                      {pos ? <TrendingUp size={13}/> : <TrendingDown size={13}/>}
+                      {pos ? "+" : ""}{change.toFixed(2)}%
+                    </span>
+                    {absChange != null && (
+                      <span className={`mkt-change-abs${pos ? " pos" : " neg"}`}>
+                        {pos ? "+" : ""}{sym}{Math.abs(absChange).toFixed(2)}
+                      </span>
+                    )}
+                    <span className="mkt-change-period">5D</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Row 3: stats strip */}
+          <div className="mkt-stats-strip">
+            <StatChip label="52W High" value={week52H != null ? `${sym}${week52H.toLocaleString("en-IN")}` : "—"} highlight={C.pos} />
+            <StatChip label="52W Low"  value={week52L != null ? `${sym}${week52L.toLocaleString("en-IN")}` : "—"} highlight={C.neg} />
+            <StatChip label="Mkt Cap"  value={fmtMarketCap(mktCap)} />
+            <StatChip label="P/E"      value={pe != null ? pe.toFixed(1) : "—"} />
+            <StatChip label="Rel Vol"  value={relVol != null ? `${relVol}x` : "—"}
+              highlight={relVol != null && relVol > 1.5 ? C.gold : undefined}
+            />
+          </div>
+
+          {/* 52W range bar */}
+          {w52pct != null && (
+            <div className="mkt-52w-bar-wrap">
+              <span className="mkt-52w-end-label">{sym}{week52L?.toLocaleString("en-IN")}</span>
+              <div className="mkt-52w-track">
+                <div className="mkt-52w-fill" style={{ width: `${w52pct}%` }} />
+                <div className="mkt-52w-thumb" style={{ left: `${w52pct}%` }} />
+              </div>
+              <span className="mkt-52w-end-label">{sym}{week52H?.toLocaleString("en-IN")}</span>
+            </div>
+          )}
+
           {/* Time range pills */}
-          <div style={{ display: "flex", gap: 2, marginBottom: 14 }}>
+          <div className="mkt-time-pills">
             {TIME_RANGES.map(tr => (
               <button key={tr.label} className={`time-range-pill${chartDays === tr.days ? " active" : ""}`}
                 onClick={() => setChartDays(tr.days)}>
