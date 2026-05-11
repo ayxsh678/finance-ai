@@ -1,6 +1,6 @@
 import {
   TrendingUp, MessageSquare, Bookmark, ArrowLeftRight, PieChart,
-  Bell, MoreHorizontal,
+  Bell, MoreHorizontal, LayoutDashboard,
 } from "lucide-react";
 
 export const API_URL =
@@ -11,18 +11,20 @@ export const API_URL =
 
 // ── Color tokens ────────────────────────────────────────
 export const C = {
-  bg:       "#0F0F11",
-  surface:  "#17171A",
-  surface2: "#1E1E24",
-  border:   "#2A2A32",
-  borderA:  "#3D3D4A",
+  bg:       "#080D1A",
+  surface:  "#0D1526",
+  surface2: "#131F35",
+  border:   "#1E2D4A",
+  borderA:  "#2A3F60",
   text:     "#F0EEE8",
   textSec:  "#8C8A9A",
   textTer:  "#5A5868",
-  accent:   "#C8A96E",
-  pos:      "#4CAF7D",
-  neg:      "#E05C5C",
-  neutral:  "#B8A860",
+  accent:   "#10B981",
+  accentDim:"rgba(16,185,129,0.15)",
+  gold:     "#C8A96E",
+  pos:      "#10B981",
+  neg:      "#EF4444",
+  neutral:  "#C8A96E",
 };
 
 export const WATCHLIST_DEFAULT = [
@@ -64,6 +66,7 @@ export const TIME_RANGES = [
 
 // ── Nav config ───────────────────────────────────────────
 export const NAV_ITEMS = [
+  { id: "overview",  label: "Overview",  Icon: LayoutDashboard },
   { id: "market",    label: "Market",    Icon: TrendingUp      },
   { id: "chat",      label: "Chat",      Icon: MessageSquare   },
   { id: "watchlist", label: "Watchlist", Icon: Bookmark        },

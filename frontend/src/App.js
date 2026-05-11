@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { TrendingUp, MessageSquare, Bookmark, ArrowLeftRight, PieChart, Bell, LogOut, X, MoreHorizontal } from "lucide-react";
 import Aperture from "./Aperture";
 import FintrestMark from "./FintrestMark";
+import KyraPanel from "./KyraPanel";
 import "./App.css";
 
 import { API_URL, C, WATCHLIST_DEFAULT, NAV_ITEMS, MOBILE_TABS, MORE_SECTIONS } from "./constants";
@@ -13,7 +14,9 @@ import { auth, db } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { collection, doc, setDoc, deleteDoc, getDoc, onSnapshot } from "firebase/firestore";
 import { AuthModal } from "./components";
+import LandingPage   from "./LandingPage";
 
+import OverviewPage  from "./pages/OverviewPage";
 import MarketPage    from "./pages/MarketPage";
 import ChatPage      from "./pages/ChatPage";
 import WatchlistPage from "./pages/WatchlistPage";
@@ -39,7 +42,7 @@ export default function App() {
   }, []);
 
   // Section state
-  const [activeSection, setActiveSection] = useState("market");
+  const [activeSection, setActiveSection] = useState("overview");
   const [mobileTab, setMobileTab]         = useState("market");
 
   // Auth
@@ -52,7 +55,7 @@ export default function App() {
     if (devBypass) return;
     return onAuthStateChanged(auth, (user) => {
       setUserState(user);
-      setShowAuth(!user);
+      // Don't auto-open auth modal — landing page CTAs trigger it
       setAuthLoading(false);
     });
   }, [devBypass]);
@@ -97,8 +100,12 @@ export default function App() {
   }, [userState?.uid, devBypass]);
   const [chartDays, setChartDays]         = useState(180);
 
+  // Kyra panel
+  const [kyraOpen, setKyraOpen]     = useState(false);
+  const [kyraInput, setKyraInput]   = useState("");
+
   // Chat
-  const [messages, setMessages]     = useState([mkMsg("assistant", "Hi, I'm Fintrest. Ask me about NSE/BSE stocks, mutual funds, SIPs, or anything else about investing in India — and I'll tell you what the numbers actually say.", { sources: [] })]);
+  const [messages, setMessages]     = useState([mkMsg("assistant", "Hi, I'm Kyra. Ask me about NSE/BSE stocks, mutual funds, SIPs, or anything else about investing in India — and I'll tell you what the numbers actually say.", { sources: [] })]);
   const [input, setInput]           = useState("");
   const [loading, setLoading]       = useState(false);
   const [timeRange, setTimeRange]   = useState("7d");
@@ -370,7 +377,7 @@ export default function App() {
     setCompareLoading(false);
   };
 
-  const sendMessage = async (question) => {
+  const sendMessage = async (question, { noRedirect = false } = {}) => {
     if (!question.trim() || loading) return;
     const lower       = question.toLowerCase();
     const isCompare   = lower.includes(" vs ") || lower.includes("compare ");
@@ -379,8 +386,10 @@ export default function App() {
     setLoading(true);
     setMessages(prev => { const next = [...prev, mkMsg("user", question)]; return next.length > 100 ? next.slice(-100) : next; });
     setInput("");
-    setMobileTab("chat");
-    setActiveSection("chat");
+    if (!noRedirect) {
+      setMobileTab("chat");
+      setActiveSection("chat");
+    }
 
     const sid    = getSessionId() || await startSession();
     let endpoint = "/ask";
@@ -461,6 +470,18 @@ export default function App() {
   const activeAlerts    = alerts.filter(a => !a.triggered);
   const triggeredAlerts = alerts.filter(a => a.triggered);
 
+  // ── Kyra context (injected per active section) ────────
+  const kyraContext = useMemo(() => {
+    switch (activeSection) {
+      case "market":    return { label: selectedStock.name, ticker: selectedStock.ticker, price: selectedStock.price };
+      case "watchlist": return { label: "Watchlist", name: `${watchlist.length} stocks` };
+      case "portfolio": return { label: "Portfolio", name: holdings.length ? `${holdings.length} holdings` : null };
+      case "compare":   return { label: compareA && compareB ? `${compareA} vs ${compareB}` : "Compare", name: null };
+      case "alerts":    return { label: "Alerts", name: `${activeAlerts.length} active` };
+      default:          return { label: null };
+    }
+  }, [activeSection, selectedStock, watchlist.length, holdings.length, compareA, compareB, activeAlerts.length]);
+
   // ── Sidebar ────────────────────────────────────────────
   const sidebarCollapsed = isTablet;
   const userEmail   = userState?.email || userState?.displayName || "";
@@ -536,8 +557,14 @@ export default function App() {
     );
   }
 
+  function onAskKyra(text) {
+    sendMessage(text);
+  }
+
   function renderSection() {
     switch (activeSection) {
+      case "overview":
+        return <OverviewPage isMobile={isMobile} watchlist={watchlist} selectedStock={selectedStock} handleSelectStock={handleSelectStock} sentiments={sentiments} activeAlerts={activeAlerts} holdings={holdings} analysisResult={analysisResult} sendMessage={sendMessage} loading={loading} setActiveSection={setActiveSection} onAskKyra={onAskKyra} />;
       case "market":
         return <MarketPage isMobile={isMobile} watchlist={watchlist} selectedStock={selectedStock} sentiments={sentiments} sentimentLoading={sentimentLoading} convictions={convictions} convictionLoading={convictionLoading} newsData={newsData} newsLoading={newsLoading} chartDays={chartDays} setChartDays={setChartDays} handleSelectStock={handleSelectStock} sendMessage={sendMessage} />;
       case "chat":
@@ -551,7 +578,7 @@ export default function App() {
       case "alerts":
         return <AlertsPage isMobile={isMobile} activeAlerts={activeAlerts} triggeredAlerts={triggeredAlerts} alertTicker={alertTicker} setAlertTicker={setAlertTicker} alertThreshold={alertThreshold} setAlertThreshold={setAlertThreshold} alertDirection={alertDirection} setAlertDirection={setAlertDirection} alertError={alertError} alertCreating={alertCreating} createAlert={createAlert} deleteAlert={deleteAlert} />;
       default:
-        return <MarketPage isMobile={isMobile} watchlist={watchlist} selectedStock={selectedStock} sentiments={sentiments} sentimentLoading={sentimentLoading} convictions={convictions} convictionLoading={convictionLoading} newsData={newsData} newsLoading={newsLoading} chartDays={chartDays} setChartDays={setChartDays} handleSelectStock={handleSelectStock} sendMessage={sendMessage} />;
+        return <OverviewPage isMobile={isMobile} watchlist={watchlist} selectedStock={selectedStock} handleSelectStock={handleSelectStock} sentiments={sentiments} activeAlerts={activeAlerts} holdings={holdings} analysisResult={analysisResult} sendMessage={sendMessage} loading={loading} setActiveSection={setActiveSection} onAskKyra={onAskKyra} />;
     }
   }
 
@@ -561,6 +588,16 @@ export default function App() {
       <div className="splash-screen">
         <FintrestMark variant="loop" size={72} color={C.text} />
       </div>
+    );
+  }
+
+  // Unauthenticated → landing page with auth modal overlay
+  if (!userState) {
+    return (
+      <>
+        <LandingPage onSignIn={() => setShowAuth(true)} />
+        {showAuth && <AuthModal onSuccess={() => setShowAuth(false)} />}
+      </>
     );
   }
 
@@ -610,6 +647,22 @@ export default function App() {
           {isMobile && MobileNav()}
         </div>
       </div>
+
+      {/* Kyra — global floating AI panel */}
+      {!showAuth && (
+        <KyraPanel
+          isOpen={kyraOpen}
+          onToggle={() => setKyraOpen(o => !o)}
+          onExpand={() => { setKyraOpen(false); setActiveSection("chat"); if (isMobile) setMobileTab("chat"); }}
+          messages={messages}
+          sendMessage={sendMessage}
+          loading={loading}
+          kyraInput={kyraInput}
+          setKyraInput={setKyraInput}
+          context={kyraContext}
+          activeSection={activeSection}
+        />
+      )}
     </>
   );
 }
