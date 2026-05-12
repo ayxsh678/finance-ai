@@ -75,8 +75,11 @@ def _attempt_call(model: str, messages: list[dict], max_tokens: int,
             except (KeyError, IndexError, ValueError):
                 return None, "Error: Unexpected response format from Gemini.", False
 
-        if status == 401:
+        if status in (401, 403):
             return None, "Error: Invalid GEMINI_API_KEY.", False
+
+        if status == 404:
+            return None, f"Error: Gemini model '{model}' not found.", False
 
         if status in RETRY_STATUSES:
             last_error = (
