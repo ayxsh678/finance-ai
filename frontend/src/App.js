@@ -416,11 +416,16 @@ export default function App() {
     const sid    = getSessionId() || await startSession();
     let endpoint = "/ask";
     if (isCompare)        endpoint = "/compare/from-chat";
-    else if (isPortfolio) endpoint = "/portfolio/from-chat";
+    else if (isPortfolio) endpoint = holdings.length > 0 ? "/portfolio" : "/portfolio/from-chat";
     else if (isForex)     endpoint = "/forex/from-chat";
 
+    // Portfolio with loaded holdings: send tickers directly, no extraction needed
+    const body = (isPortfolio && holdings.length > 0)
+      ? { tickers: holdings.map(h => h.ticker), session_id: sid }
+      : { question, query: question, session_id: sid, time_range: timeRange };
+
     try {
-      const res  = await fetch(`${API_URL}${endpoint}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question, query: question, session_id: sid, time_range: timeRange }) });
+      const res  = await fetch(`${API_URL}${endpoint}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setMessages(prev => [...prev, mkMsg("assistant", data?.detail || data?.error || `Request failed (${res.status}).`, { sources: [] })]);
