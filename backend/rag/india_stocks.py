@@ -161,7 +161,16 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
             if avg_volume_30d and avg_volume_30d > 0 and latest_volume else None
         )
 
-        # Final fallback: NSE quote API has live totalTradedVolume + EODHD backup
+        # Fallback 1: Alpha Vantage GLOBAL_QUOTE — works on cloud IPs, has today_vol + rel_vol
+        if rel_volume_ratio is None:
+            try:
+                av_fb = av_get_quote(ticker)
+                if av_fb and av_fb.get("rel_vol") is not None:
+                    rel_volume_ratio = av_fb["rel_vol"]
+            except Exception:
+                pass
+
+        # Fallback 2: NSE quote API has live totalTradedVolume + EODHD backup
         if rel_volume_ratio is None:
             try:
                 nse_fb = get_nse_quote(ticker)
