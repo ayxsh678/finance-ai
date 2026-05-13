@@ -430,7 +430,7 @@ export function WatchlistTable({ watchlist, sentiments, sentimentLoading, onSele
   if (!watchlist.length) return <EmptyState Icon={Bookmark} title="No stocks." subtitle="Add tickers to your watchlist." />;
   return (
     <div style={{ width: "100%" }}>
-      <div className="wl-header">
+      <div className="wl-header" style={{ display: "grid", gridTemplateColumns: "120px 1fr 100px 90px 96px 32px", gap: 12, alignItems: "center", padding: "0 16px" }}>
         {["Ticker", "Name", "Price", "Change", "Sentiment", ""].map(h => (
           <div key={h} className="label" style={{ fontSize: 10 }}>{h}</div>
         ))}
@@ -441,32 +441,30 @@ export function WatchlistTable({ watchlist, sentiments, sentimentLoading, onSele
         const sLoad = sentimentLoading[s.ticker];
         const sym   = currencySymbol(s.type);
         return (
-          <div key={s.ticker} className="wl-row" style={{ position: "relative" }}>
-            <div onClick={() => onSelect(s)} style={{ flex: 1, display: "grid", gridTemplateColumns: "120px 1fr 100px 90px 96px", gap: 12, alignItems: "center", cursor: "pointer" }}>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.ticker}</div>
-              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={s.name}>{s.name}</div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.text }}>
-                {s.price == null ? "—" : `${sym}${s.price.toLocaleString()}`}
-              </div>
-              <div>
-                {s.change == null ? <span style={{ color: C.textSec }}>—</span> : (
-                  <span className={isUp ? "pill-pos" : "pill-neg"} style={{ fontSize: 11 }}>
-                    {isUp ? "▲" : "▼"} {Math.abs(s.change).toFixed(2)}%
-                  </span>
-                )}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 96 }}>
-                {sLoad ? (
-                  <span style={{ fontSize: 11, color: C.textTer }}>…</span>
-                ) : sent?.score != null ? (
-                  <>
-                    <SentimentBar score={sent.score} />
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: sentimentColor(sent.score), minWidth: 28, textAlign: "right" }}>{sent.score}</span>
-                  </>
-                ) : <span style={{ fontSize: 11, color: C.textTer }}>—</span>}
-              </div>
+          <div key={s.ticker} className="wl-row" style={{ display: "grid", gridTemplateColumns: "120px 1fr 100px 90px 96px 32px", gap: 12, alignItems: "center", padding: "0 16px", cursor: "pointer" }} onClick={() => onSelect(s)}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.ticker}</div>
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={s.name}>{s.name}</div>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.text }}>
+              {s.price == null ? "—" : `${sym}${s.price.toLocaleString()}`}
             </div>
-            <button className="btn-ghost" style={{ padding: "4px 6px", fontSize: 12, color: C.textTer, marginLeft: "auto" }} onClick={e => { e.stopPropagation(); onRemove(s.ticker); }} title="Remove from watchlist">
+            <div>
+              {s.change == null ? <span style={{ color: C.textSec }}>—</span> : (
+                <span className={isUp ? "pill-pos" : "pill-neg"} style={{ fontSize: 11 }}>
+                  {isUp ? "▲" : "▼"} {Math.abs(s.change).toFixed(2)}%
+                </span>
+              )}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {sLoad ? (
+                <span style={{ fontSize: 11, color: C.textTer }}>…</span>
+              ) : sent?.score != null ? (
+                <>
+                  <SentimentBar score={sent.score} />
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: sentimentColor(sent.score), minWidth: 28, textAlign: "right" }}>{sent.score}</span>
+                </>
+              ) : <span style={{ fontSize: 11, color: C.textTer }}>—</span>}
+            </div>
+            <button className="btn-ghost" style={{ padding: "4px 6px", fontSize: 12, color: C.textTer, justifySelf: "center" }} onClick={e => { e.stopPropagation(); onRemove(s.ticker); }} title="Remove from watchlist">
               <X size={14} />
             </button>
           </div>
