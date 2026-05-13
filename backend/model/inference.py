@@ -100,7 +100,7 @@ def _attempt_call(model: str, messages: list[dict], max_tokens: int,
     return None, last_error, True
 
 
-def _call_gemini(messages: list[dict], max_tokens: int = 1024,
+def _call_gemini(messages: list[dict], max_tokens: int = 4096,
                temperature: float = 0.2, model: str = PRIMARY_MODEL) -> str:
     """Single shared Gemini call — all functions route through here."""
     if not GEMINI_API_KEY:
@@ -140,7 +140,7 @@ def generate_response(question: str, context: str,
         messages.extend(history)
     messages.append({"role": "user", "content": user_message})
 
-    return _call_gemini(messages)
+    return _call_gemini(messages, max_tokens=4096)
 
 
 def generate_portfolio_summary(tickers: list[str], context: str) -> str:
