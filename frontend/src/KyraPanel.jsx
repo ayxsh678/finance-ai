@@ -62,7 +62,7 @@ export default function KyraPanel({
   const handleSend = (text) => {
     const q = (text ?? kyraInput).trim();
     if (!q || loading) return;
-    sendMessage(q, { noRedirect: true });
+    sendMessage(q, { noRedirect: true, context });
     if (!text) setKyraInput("");
   };
 

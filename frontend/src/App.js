@@ -399,9 +399,33 @@ export default function App() {
     setCompareLoading(false);
   };
 
-  const sendMessage = async (question, { noRedirect = false } = {}) => {
+  const buildContextualQuestion = (question, context) => {
+    if (!context?.ticker) return question;
+
+    const ticker = context.ticker;
+    const label = context.label || context.name || ticker;
+    const lowerQuestion = question.toLowerCase();
+    const alreadyMentionsTicker = lowerQuestion.includes(ticker.toLowerCase());
+    const alreadyMentionsName = label && lowerQuestion.includes(label.toLowerCase());
+
+    if (alreadyMentionsTicker || alreadyMentionsName) return question;
+
+    const priceText = context.price != null
+      ? ` Current displayed price: ₹${Number(context.price).toLocaleString("en-IN")}.`
+      : "";
+
+    return `${question}
+
+Current app context: The user is viewing ${label} (${ticker}) in Fintrest. Treat references like "this stock", "it", "this company", or "the current stock" as ${ticker}.${priceText}`;
+  };
+
+  const sendMessage = async (question, { noRedirect = false, context = null } = {}) => {
     if (!question.trim() || loading) return;
-    const lower       = question.toLowerCase();
+    const inferredContext = context || (activeSection === "market"
+      ? { label: selectedStock.name, ticker: selectedStock.ticker, price: selectedStock.price }
+      : null);
+    const apiQuestion = buildContextualQuestion(question, inferredContext);
+    const lower       = apiQuestion.toLowerCase();
     const isCompare   = lower.includes(" vs ") || lower.includes("compare ");
     const isPortfolio = lower.includes("portfolio") || lower.includes("analyze my");
     const isForex     = /\b(usd|eur|gbp|jpy|inr|cny|forex|currency|exchange rate|rupee|dollar|euro|pound)\b/.test(lower) && lower.includes("rate");
@@ -422,7 +446,7 @@ export default function App() {
     // Portfolio with loaded holdings: send tickers directly, no extraction needed
     const body = (isPortfolio && holdings.length > 0)
       ? { tickers: holdings.map(h => h.ticker), session_id: sid }
-      : { question, query: question, session_id: sid, time_range: timeRange };
+      : { question: apiQuestion, query: apiQuestion, session_id: sid, time_range: timeRange };
 
     try {
       const res  = await fetch(`${API_URL}${endpoint}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
