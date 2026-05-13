@@ -481,7 +481,7 @@ function ChartFallback({ ticker, height, reason }) {
 }
 
 // ── TradingView chart (lightweight-charts) ────────────────
-export function TradingViewChart({ ticker, height = 220, days = 180 }) {
+export function TradingViewChart({ ticker, height = 220, days = 180, compact = false }) {
   const containerRef = useRef(null);
   const chartRef     = useRef(null);
   const [state, setState] = useState({ status: "loading" });
@@ -496,14 +496,15 @@ export function TradingViewChart({ ticker, height = 220, days = 180 }) {
     (async () => {
       try {
         const { createChart, ColorType, LineStyle } = await import("lightweight-charts");
-        const res = await fetch(`${API_URL}/chart/${encodeURIComponent(ticker)}?days=${days}`);
+        const requestedDays = compact ? Math.min(days, 90) : days;
+        const res = await fetch(`${API_URL}/chart/${encodeURIComponent(ticker)}?days=${requestedDays}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const payload = await res.json();
         if (cancelled) return;
         if (!payload.ok || !Array.isArray(payload.rows) || !payload.rows.length) {
           await new Promise(r => setTimeout(r, 4000));
           if (cancelled) return;
-          const res2 = await fetch(`${API_URL}/chart/${encodeURIComponent(ticker)}?days=${days}`);
+          const res2 = await fetch(`${API_URL}/chart/${encodeURIComponent(ticker)}?days=${requestedDays}`);
           if (!res2.ok) { setState({ status: "error", reason: "No chart data available" }); return; }
           const payload2 = await res2.json();
           if (cancelled) return;
@@ -525,10 +526,12 @@ export function TradingViewChart({ ticker, height = 220, days = 180 }) {
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 11,
           },
-          grid: {
-            vertLines: { color: C.border, style: LineStyle.Dashed },
-            horzLines: { color: C.border, style: LineStyle.Dashed },
-          },
+          grid: compact
+            ? { vertLines: { visible: false }, horzLines: { color: C.border, style: LineStyle.Dashed } }
+            : {
+                vertLines: { color: C.border, style: LineStyle.Dashed },
+                horzLines: { color: C.border, style: LineStyle.Dashed },
+              },
           rightPriceScale: { borderColor: C.border },
           timeScale:       { borderColor: C.border, timeVisible: false, secondsVisible: false },
           crosshair: {
@@ -547,7 +550,7 @@ export function TradingViewChart({ ticker, height = 220, days = 180 }) {
         const rows = payload.rows.map(r => ({ time: r.time, open: r.open, high: r.high, low: r.low, close: r.close }));
         candles.setData(rows);
 
-        if (payload.rows[0]?.volume != null) {
+        if (!compact && payload.rows[0]?.volume != null) {
           const volSeries = chart.addHistogramSeries({
             priceFormat: { type: "volume" },
             priceScaleId: "vol",
@@ -580,7 +583,7 @@ export function TradingViewChart({ ticker, height = 220, days = 180 }) {
       if (resizeObserver) resizeObserver.disconnect();
       if (chartRef.current) { chartRef.current.remove(); chartRef.current = null; }
     };
-  }, [ticker, height, days, isValid]);
+  }, [ticker, height, days, compact, isValid]);
 
   if (state.status === "error") return <ChartFallback ticker={ticker} height={height} reason={state.reason} />;
 
@@ -655,10 +658,15 @@ export function TickerAutocomplete({ value, onChange, onSelect, onKeyDown, place
 // ── Chat bubble ───────────────────────────────────────────
 const SECTION_LABELS = new Set([
   "WHAT",
+  "DECISION",
   "WHY",
   "CONTEXT",
   "SIGNAL",
   "AVOID",
+  "SETUP",
+  "VALUATION",
+  "TECHNICALS",
+  "SENTIMENT",
   "BOTTOM LINE",
   "PORTFOLIO HEALTH",
   "CONCENTRATION",

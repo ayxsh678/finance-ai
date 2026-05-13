@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { TrendingUp, MessageSquare, Bookmark, ArrowLeftRight, PieChart, Bell, LogOut, X, MoreHorizontal } from "lucide-react";
+import { TrendingUp, MessageSquare, Bookmark, ArrowLeftRight, PieChart, Bell, LogOut, X, MoreHorizontal, User } from "lucide-react";
 import Aperture from "./Aperture";
 import FintrestMark from "./FintrestMark";
 import KyraPanel from "./KyraPanel";
@@ -170,7 +170,9 @@ export default function App() {
 
   // ── Effects ────────────────────────────────────────────
   useEffect(() => { if (!getSessionId()) startSession(); }, []);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: isMobile ? "auto" : "smooth" });
+  }, [messages, isMobile]);
 
   useEffect(() => {
     const sid = getSessionId();
@@ -285,13 +287,26 @@ export default function App() {
     finally { setStockQuoteLoading(false); }
   }, []);
 
-  useEffect(() => { watchlist.forEach(s => fetchSentiment(s.ticker, s.name)); }, [watchlist, fetchSentiment]);
+  useEffect(() => {
+    if (isMobile && activeSection !== "watchlist") return;
+    watchlist.forEach(s => fetchSentiment(s.ticker, s.name));
+  }, [watchlist, fetchSentiment, isMobile, activeSection]);
+
   useEffect(() => {
     fetchSentiment(selectedStock.ticker, selectedStock.name);
     fetchConviction(selectedStock.ticker, selectedStock.name);
-    fetchNews(selectedStock.ticker, selectedStock.name);
     fetchQuote(selectedStock.ticker);
-  }, [selectedStock.ticker, fetchSentiment, fetchConviction, fetchNews, fetchQuote]);
+  }, [selectedStock.ticker, selectedStock.name, fetchSentiment, fetchConviction, fetchQuote]);
+
+  useEffect(() => {
+    if (isMobile && activeSection !== "market") return;
+    if (!isMobile && activeSection !== "market" && activeSection !== "overview") return;
+    const delay = isMobile ? 1800 : 0;
+    const timer = setTimeout(() => {
+      fetchNews(selectedStock.ticker, selectedStock.name);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [selectedStock.ticker, selectedStock.name, fetchNews, isMobile, activeSection]);
 
   useEffect(() => {
     if (activeSection === "alerts") {
@@ -410,19 +425,31 @@ export default function App() {
 
     if (alreadyMentionsTicker || alreadyMentionsName) return question;
 
-    const priceText = context.price != null
-      ? ` Current displayed price: ₹${Number(context.price).toLocaleString("en-IN")}.`
-      : "";
+    const contextLines = [
+      `Selected stock: ${label} (${ticker})`,
+      context.price != null ? `Displayed price: ₹${Number(context.price).toLocaleString("en-IN")}` : null,
+      context.change != null ? `Displayed 5D change: ${Number(context.change).toFixed(2)}%` : null,
+      context.pe != null ? `P/E: ${Number(context.pe).toFixed(1)}` : null,
+      context.marketCap != null ? `Market cap: ₹${Number(context.marketCap).toLocaleString("en-IN")}` : null,
+      context.week52High != null ? `52-week high: ₹${Number(context.week52High).toLocaleString("en-IN")}` : null,
+      context.week52Low != null ? `52-week low: ₹${Number(context.week52Low).toLocaleString("en-IN")}` : null,
+      context.relVol != null ? `Relative volume: ${context.relVol}x` : null,
+      context.sentimentScore != null ? `News sentiment: ${context.sentimentScore}/100 (${context.sentimentLabel || "unknown"})` : null,
+      context.convictionScore != null ? `Fintrest conviction: ${context.convictionScore}/100 (${context.convictionLabel || "unknown"})` : null,
+    ].filter(Boolean);
 
     return `${question}
 
-Current app context: The user is viewing ${label} (${ticker}) in Fintrest. Treat references like "this stock", "it", "this company", or "the current stock" as ${ticker}.${priceText}`;
+Current app context:
+${contextLines.join("\n")}
+
+Treat references like "this stock", "it", "this company", or "the current stock" as ${ticker}. For buy/hold/sell questions, use the displayed Fintrest context above as first-party product context.`;
   };
 
   const sendMessage = async (question, { noRedirect = false, context = null } = {}) => {
     if (!question.trim() || loading) return;
     const inferredContext = context || (activeSection === "market"
-      ? { label: selectedStock.name, ticker: selectedStock.ticker, price: selectedStock.price }
+      ? kyraContext
       : null);
     const apiQuestion = buildContextualQuestion(question, inferredContext);
     const lower       = apiQuestion.toLowerCase();
@@ -521,23 +548,46 @@ Current app context: The user is viewing ${label} (${ticker}) in Fintrest. Treat
 
   const activeAlerts    = alerts.filter(a => !a.triggered);
   const triggeredAlerts = alerts.filter(a => a.triggered);
+  const userEmail   = userState?.email || userState?.displayName || "";
+  const userInitial = userEmail.length > 0 ? userEmail[0].toUpperCase() : "?";
+  const accountProvider = userState?.providerData?.[0]?.providerId?.replace(".com", "") || (devBypass ? "dev" : "email");
+  const accountCreated = userState?.metadata?.creationTime
+    ? new Date(userState.metadata.creationTime).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+    : "—";
 
   // ── Kyra context (injected per active section) ────────
   const kyraContext = useMemo(() => {
     switch (activeSection) {
-      case "market":    return { label: selectedStock.name, ticker: selectedStock.ticker, price: selectedStock.price };
+      case "market": {
+        const sentiment = sentiments[selectedStock.ticker];
+        const conviction = convictions[selectedStock.ticker];
+        return {
+          label: selectedStock.name,
+          ticker: selectedStock.ticker,
+          price: selectedStock.price,
+          change: selectedStock.change,
+          pe: stockQuote?.pe_ratio,
+          marketCap: stockQuote?.market_cap,
+          week52High: stockQuote?.week52_high,
+          week52Low: stockQuote?.week52_low,
+          relVol: stockQuote?.rel_volume,
+          sentimentScore: sentiment?.score,
+          sentimentLabel: sentiment?.label,
+          convictionScore: conviction?.score,
+          convictionLabel: conviction?.label,
+        };
+      }
       case "watchlist": return { label: "Watchlist", name: `${watchlist.length} stocks` };
       case "portfolio": return { label: "Portfolio", name: holdings.length ? `${holdings.length} holdings` : null };
       case "compare":   return { label: compareA && compareB ? `${compareA} vs ${compareB}` : "Compare", name: null };
       case "alerts":    return { label: "Alerts", name: `${activeAlerts.length} active` };
+      case "profile":   return { label: "Profile", name: userEmail };
       default:          return { label: null };
     }
-  }, [activeSection, selectedStock, watchlist.length, holdings.length, compareA, compareB, activeAlerts.length]);
+  }, [activeSection, selectedStock, stockQuote, sentiments, convictions, watchlist.length, holdings.length, compareA, compareB, activeAlerts.length, userEmail]);
 
   // ── Sidebar ────────────────────────────────────────────
   const sidebarCollapsed = isTablet;
-  const userEmail   = userState?.email || userState?.displayName || "";
-  const userInitial = userEmail.length > 0 ? userEmail[0].toUpperCase() : "?";
 
   function Sidebar() {
     return (
@@ -559,9 +609,15 @@ Current app context: The user is viewing ${label} (${ticker}) in Fintrest. Treat
           ))}
         </nav>
 
-        <div className="sidebar-footer">
-          <div className="sidebar-avatar">{userInitial}</div>
-          <div className="sidebar-email">{userEmail}</div>
+        <div className={`sidebar-footer${activeSection === "profile" ? " active" : ""}`}>
+          <button
+            className="sidebar-profile-btn"
+            onClick={() => setActiveSection("profile")}
+            title={sidebarCollapsed ? "Profile" : undefined}
+          >
+            <div className="sidebar-avatar">{userInitial}</div>
+            <div className="sidebar-email">{userEmail}</div>
+          </button>
           <button className="sidebar-logout" onClick={handleLogout} title="Sign out">
             <LogOut size={16} />
           </button>
@@ -595,7 +651,7 @@ Current app context: The user is viewing ${label} (${ticker}) in Fintrest. Treat
 
   // ── Mobile "More" sub-nav ─────────────────────────────
   function MobileMoreNav() {
-    const sections = [{ id: "watchlist", label: "Watchlist" }, { id: "compare", label: "Compare" }, { id: "portfolio", label: "Portfolio" }, { id: "alerts", label: "Alerts" }];
+    const sections = [{ id: "watchlist", label: "Watchlist" }, { id: "compare", label: "Compare" }, { id: "portfolio", label: "Portfolio" }, { id: "alerts", label: "Alerts" }, { id: "profile", label: "Profile" }];
     return (
       <div style={{ display: "flex", gap: 6, padding: "10px 16px", borderBottom: `1px solid ${C.border}`, background: C.bg }}>
         {sections.map(({ id, label }) => (
@@ -629,6 +685,57 @@ Current app context: The user is viewing ${label} (${ticker}) in Fintrest. Treat
         return <PortfolioPage isMobile={isMobile} portMode={portMode} setPortMode={setPortMode} holdings={holdings} setHoldings={setHoldings} holdingInput={holdingInput} setHoldingInput={setHoldingInput} holdingError={holdingError} setHoldingError={setHoldingError} analysisResult={analysisResult} setAnalysisResult={setAnalysisResult} analysisLoading={analysisLoading} setAnalysisLoading={setAnalysisLoading} portfolio={portfolio} portfolioData={portfolioData} portfolioLoading={portfolioLoading} portfolioInput={portfolioInput} setPortfolioInput={setPortfolioInput} runPortfolioAnalysis={runPortfolioAnalysis} addToPortfolio={addToPortfolio} removeFromPortfolio={removeFromPortfolio} />;
       case "alerts":
         return <AlertsPage isMobile={isMobile} activeAlerts={activeAlerts} triggeredAlerts={triggeredAlerts} alertTicker={alertTicker} setAlertTicker={setAlertTicker} alertThreshold={alertThreshold} setAlertThreshold={setAlertThreshold} alertDirection={alertDirection} setAlertDirection={setAlertDirection} alertError={alertError} alertCreating={alertCreating} createAlert={createAlert} deleteAlert={deleteAlert} />;
+      case "profile":
+        return (
+          <div className="profile-page">
+            <div className="profile-header">
+              <div className="profile-avatar">{userInitial}</div>
+              <div>
+                <div className="profile-kicker">Account</div>
+                <div className="profile-title">{userState?.displayName || userEmail || "Fintrest user"}</div>
+                <div className="profile-subtitle">{userEmail}</div>
+              </div>
+            </div>
+
+            <div className="profile-grid">
+              <div className="profile-card">
+                <div className="profile-card-label">Sign-in method</div>
+                <div className="profile-card-value">{accountProvider}</div>
+              </div>
+              <div className="profile-card">
+                <div className="profile-card-label">Member since</div>
+                <div className="profile-card-value">{accountCreated}</div>
+              </div>
+              <div className="profile-card">
+                <div className="profile-card-label">Watchlist</div>
+                <div className="profile-card-value">{watchlist.length} stocks</div>
+              </div>
+              <div className="profile-card">
+                <div className="profile-card-label">Portfolio</div>
+                <div className="profile-card-value">{holdings.length || portfolio.length} items</div>
+              </div>
+            </div>
+
+            <div className="profile-actions">
+              <button className="profile-action" onClick={() => { setActiveSection("chat"); if (isMobile) setMobileTab("chat"); }}>
+                <User size={16} />
+                Open Kyra chat
+              </button>
+              <button className="profile-action" onClick={() => { setActiveSection("watchlist"); if (isMobile) setMobileTab("more"); }}>
+                <Bookmark size={16} />
+                Manage watchlist
+              </button>
+              <button className="profile-action" onClick={() => { setActiveSection("portfolio"); if (isMobile) setMobileTab("more"); }}>
+                <PieChart size={16} />
+                View portfolio
+              </button>
+              <button className="profile-action danger" onClick={handleLogout}>
+                <LogOut size={16} />
+                Sign out
+              </button>
+            </div>
+          </div>
+        );
       default:
         return <OverviewPage isMobile={isMobile} watchlist={watchlist} selectedStock={selectedStock} handleSelectStock={handleSelectStock} sentiments={sentiments} activeAlerts={activeAlerts} holdings={holdings} analysisResult={analysisResult} sendMessage={sendMessage} loading={loading} setActiveSection={setActiveSection} onAskKyra={onAskKyra} />;
     }

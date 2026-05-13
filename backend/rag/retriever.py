@@ -219,6 +219,10 @@ def build_context(question: str, time_range: str = "7d") -> str:
     context_parts = []
 
     tickers = _extract_tickers(question)
+    selected_names = {
+        match.group(2).upper(): match.group(1).strip()
+        for match in re.finditer(r"Selected stock:\s*([^\n(]+?)\s*\(([A-Z0-9._-]+)\)", question, re.I)
+    }
 
     for ticker in tickers[:2]:
         stock = get_stock_data(ticker)
@@ -230,7 +234,7 @@ def build_context(question: str, time_range: str = "7d") -> str:
                 f"Market: {stock.get('market', 'Unknown')}"
             )
 
-        news = get_news_for_ticker(ticker, days=days)
+        news = get_news_for_ticker(ticker, days=days, company_name=selected_names.get(ticker.upper(), ""))
         if news:
             context_parts.append("News: " + " | ".join(
                 a["title"] for a in news[:3]

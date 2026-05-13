@@ -173,7 +173,7 @@ export default function MarketPage({
             ))}
           </div>
 
-          <TradingViewChart ticker={selectedStock.ticker} height={isMobile ? 180 : 240} days={chartDays} />
+          <TradingViewChart ticker={selectedStock.ticker} height={isMobile ? 180 : 240} days={chartDays} compact={isMobile} />
         </div>
 
         <ConvictionScore ticker={selectedStock.ticker} conviction={convictions[selectedStock.ticker]} loading={convictionLoading[selectedStock.ticker] ?? false} />
