@@ -4,8 +4,9 @@ import { Bookmark, Copy, Check } from "lucide-react";
 import Aperture from "./Aperture";
 import { C, METRIC_EXPLANATIONS, CHART_VALID_TICKER, TICKER_LIST, API_URL } from "./constants";
 import { generateSparkline, sentimentColor, currencySymbol, maybeTitle, fmt, fmtPct, tvSymbolUrl } from "./utils";
-import { auth, googleProvider, firebaseInitError } from "./firebase";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import { auth, googleProvider, firebaseInitError, db } from "./firebase";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail, updateProfile } from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 // ── Loading line ──────────────────────────────────────────
 export function LoadingLine({ message = "Fetching market data…" }) {
@@ -821,7 +822,9 @@ export function AuthModal({ onSuccess }) {
   const [mode, setMode]         = useState("login");
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [error, setError]       = useState("");
+  const [info, setInfo]         = useState("");
   const [loading, setLoading]   = useState(false);
 
   const submit = async () => {
@@ -830,17 +833,37 @@ export function AuthModal({ onSuccess }) {
       setError(firebaseInitError || "Authentication is not configured.");
       return;
     }
-    setLoading(true); setError("");
+    setLoading(true); setError(""); setInfo("");
     try {
       if (mode === "login") {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        if (!username.trim()) {
+          throw { code: "auth/username-required" };
+        }
+        const usernameValue = username.trim();
+        const usernameKey = usernameValue.toLowerCase();
+        const usernameRef = doc(db, "usernames", usernameKey);
+        const existing = await getDoc(usernameRef);
+        if (existing.exists()) {
+          throw { code: "auth/username-already-in-use" };
+        }
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        await updateProfile(user, { displayName: usernameValue });
+        await setDoc(usernameRef, { uid: user.uid, email, created: serverTimestamp() });
+        await setDoc(doc(db, "users", user.uid), { username: usernameValue, created: serverTimestamp() }, { merge: true });
       }
       onSuccess?.();
     } catch (err) {
-      console.error("[auth] code:", err.code, "msg:", err.message);
-      setError(firebaseErrorMsg(err.code));
+      console.error("[auth] code:", err.code || err, "msg:", err.message || err);
+      if (err.code === "auth/username-already-in-use") {
+        setError("Username already taken. Pick another.");
+      } else if (err.code === "auth/username-required") {
+        setError("Choose a username.");
+      } else {
+        setError(firebaseErrorMsg(err.code));
+      }
     }
     setLoading(false);
   };
@@ -850,7 +873,7 @@ export function AuthModal({ onSuccess }) {
       setError(firebaseInitError || "Authentication is not configured.");
       return;
     }
-    setLoading(true); setError("");
+    setLoading(true); setError(""); setInfo("");
     try {
       await signInWithPopup(auth, googleProvider);
       onSuccess?.();
@@ -858,6 +881,27 @@ export function AuthModal({ onSuccess }) {
       if (err.code !== "auth/popup-closed-by-user") {
         setError(firebaseErrorMsg(err.code));
       }
+    }
+    setLoading(false);
+  };
+
+  const resetPassword = async () => {
+    if (!email) {
+      setError("Enter your email to reset password.");
+      setInfo("");
+      return;
+    }
+    if (!auth) {
+      setError(firebaseInitError || "Authentication is not configured.");
+      return;
+    }
+    setLoading(true); setError(""); setInfo("");
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setInfo("Password reset sent. Check your inbox.");
+    } catch (err) {
+      console.error("[auth] reset code:", err.code, "msg:", err.message);
+      setError(firebaseErrorMsg(err.code));
     }
     setLoading(false);
   };
@@ -874,15 +918,26 @@ export function AuthModal({ onSuccess }) {
         </div>
 
         <div className="auth-tabs">
-          {[["login","Sign In"],["register","Create Account"]].map(([m, lbl]) => (
+          {[ ["login","Sign In"], ["register","Create Account"] ].map(([m, lbl]) => (
             <button key={m} className={`auth-tab${mode === m ? " active" : ""}`}
-              onClick={() => { setMode(m); setError(""); }}>
+              onClick={() => {
+                setMode(m);
+                setError("");
+                setInfo("");
+                if (m === "login") setUsername("");
+              }}>
               {lbl}
             </button>
           ))}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {mode === "register" && (
+            <div>
+              <div className="label" style={{ marginBottom: 8 }}>Username</div>
+              <input className="input-line" value={username} onChange={e => setUsername(e.target.value)} placeholder="choose a unique username" type="text" />
+            </div>
+          )}
           <div>
             <div className="label" style={{ marginBottom: 8 }}>Email</div>
             <input className="input-line" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" type="email" />
@@ -891,10 +946,16 @@ export function AuthModal({ onSuccess }) {
             <div className="label" style={{ marginBottom: 8 }}>Password</div>
             <input className="input-line" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" type="password"
               onKeyDown={e => e.key === "Enter" && submit()} />
+            {mode === "login" && (
+              <button type="button" className="auth-link" onClick={resetPassword} disabled={!email || loading}
+                style={{ marginTop: 8, border: "none", background: "none", color: C.accent, cursor: !email || loading ? "not-allowed" : "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: 12, padding: 0 }}>
+                Forgot password?
+              </button>
+            )}
           </div>
           {error && <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.neg }}>{error}</div>}
-          <button className="auth-submit" onClick={submit} disabled={loading || !email || !password || !auth}>
-            {loading ? "…" : mode === "login" ? "Sign In" : "Create Account"}
+          {info && <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.pos }}>{info}</div>}
+          <button className="auth-submit" onClick={submit} disabled={loading || !email || !password || !auth || (mode === "register" && !username.trim())}>
           </button>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0" }}>
