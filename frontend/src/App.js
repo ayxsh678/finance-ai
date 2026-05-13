@@ -371,12 +371,20 @@ export default function App() {
   const addToFirestoreWatchlist = async (ticker, name = ticker, base = 0, type = "India") => {
     const uid = userState?.uid;
     if (!uid || devBypass) return;
-    await setDoc(doc(db, "users", uid, "watchlist", ticker.toUpperCase()), { name, base, type });
+    const tickerUpper = ticker.toUpperCase();
+    // Add to local state immediately
+    if (!watchlist.some(s => s.ticker === tickerUpper)) {
+      setWatchlist(prev => [...prev, { ticker: tickerUpper, name, price: null, change: null, base, type }]);
+    }
+    await setDoc(doc(db, "users", uid, "watchlist", tickerUpper), { name, base, type });
   };
   const removeFromFirestoreWatchlist = async (ticker) => {
     const uid = userState?.uid;
     if (!uid || devBypass) return;
-    await deleteDoc(doc(db, "users", uid, "watchlist", ticker.toUpperCase()));
+    const tickerUpper = ticker.toUpperCase();
+    // Remove from local state immediately
+    setWatchlist(prev => prev.filter(s => s.ticker !== tickerUpper));
+    await deleteDoc(doc(db, "users", uid, "watchlist", tickerUpper));
   };
 
   const addToPortfolio      = (t) => { const v = t.trim().toUpperCase(); if (v) setPortfolio(prev => prev.includes(v) ? prev : [...prev, v]); };
@@ -678,7 +686,7 @@ Treat references like "this stock", "it", "this company", or "the current stock"
       case "chat":
         return <ChatPage messages={messages} loading={loading} input={input} setInput={setInput} historyOpen={historyOpen} setHistoryOpen={setHistoryOpen} chatSessions={chatSessions} bottomRef={bottomRef} sendMessage={sendMessage} handleNewChat={handleNewChat} loadChatSession={loadChatSession} />;
       case "watchlist":
-        return <WatchlistPage watchlist={watchlist} sentiments={sentiments} sentimentLoading={sentimentLoading} handleSelectStock={handleSelectStock} />;
+        return <WatchlistPage watchlist={watchlist} sentiments={sentiments} sentimentLoading={sentimentLoading} handleSelectStock={handleSelectStock} onAdd={addToFirestoreWatchlist} onRemove={removeFromFirestoreWatchlist} />;
       case "compare":
         return <ComparePage isMobile={isMobile} compareA={compareA} compareB={compareB} setCompareA={setCompareA} setCompareB={setCompareB} compareData={compareData} compareLoading={compareLoading} runComparison={runComparison} chartDays={chartDays} />;
       case "portfolio":
