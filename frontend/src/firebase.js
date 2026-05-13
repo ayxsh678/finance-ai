@@ -11,7 +11,21 @@ const firebaseConfig = {
   appId:             process.env.REACT_APP_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+const missingKeys = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
+
+export const firebaseInitError = missingKeys.length
+  ? `Missing Firebase config keys: ${missingKeys.join(", ")}`
+  : null;
+
+let app = null;
+if (!firebaseInitError) {
+  app = initializeApp(firebaseConfig);
+} else {
+  console.error(firebaseInitError);
+}
+
+export const auth = app ? getAuth(app) : null;
+export const db = app ? getFirestore(app) : null;
 export const googleProvider = new GoogleAuthProvider();

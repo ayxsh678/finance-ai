@@ -4,7 +4,7 @@ import { Bookmark, Copy, Check } from "lucide-react";
 import Aperture from "./Aperture";
 import { C, METRIC_EXPLANATIONS, CHART_VALID_TICKER, TICKER_LIST, API_URL } from "./constants";
 import { generateSparkline, sentimentColor, currencySymbol, maybeTitle, fmt, fmtPct, tvSymbolUrl } from "./utils";
-import { auth, googleProvider } from "./firebase";
+import { auth, googleProvider, firebaseInitError } from "./firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 
 // ── Loading line ──────────────────────────────────────────
@@ -826,6 +826,10 @@ export function AuthModal({ onSuccess }) {
 
   const submit = async () => {
     if (!email || !password) return;
+    if (!auth) {
+      setError(firebaseInitError || "Authentication is not configured.");
+      return;
+    }
     setLoading(true); setError("");
     try {
       if (mode === "login") {
@@ -842,6 +846,10 @@ export function AuthModal({ onSuccess }) {
   };
 
   const signInWithGoogle = async () => {
+    if (!auth) {
+      setError(firebaseInitError || "Authentication is not configured.");
+      return;
+    }
     setLoading(true); setError("");
     try {
       await signInWithPopup(auth, googleProvider);
@@ -885,7 +893,7 @@ export function AuthModal({ onSuccess }) {
               onKeyDown={e => e.key === "Enter" && submit()} />
           </div>
           {error && <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.neg }}>{error}</div>}
-          <button className="auth-submit" onClick={submit} disabled={loading || !email || !password}>
+          <button className="auth-submit" onClick={submit} disabled={loading || !email || !password || !auth}>
             {loading ? "…" : mode === "login" ? "Sign In" : "Create Account"}
           </button>
 
@@ -897,13 +905,13 @@ export function AuthModal({ onSuccess }) {
 
           <button
             onClick={signInWithGoogle}
-            disabled={loading}
+            disabled={loading || !auth}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
               padding: "12px 16px", borderRadius: 10, border: `1px solid ${C.border}`,
-              background: C.surface2, color: C.text, cursor: "pointer",
+              background: C.surface2, color: C.text, cursor: loading || !auth ? "not-allowed" : "pointer",
               fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: 500,
-              opacity: loading ? 0.6 : 1, transition: "border-color 0.2s",
+              opacity: loading || !auth ? 0.6 : 1, transition: "border-color 0.2s",
             }}
             onMouseEnter={e => e.currentTarget.style.borderColor = C.borderA}
             onMouseLeave={e => e.currentTarget.style.borderColor = C.border}

@@ -2828,3 +2828,149 @@
 @media (min-width: 1440px) {
   .ov-page { max-width: 1200px; }
 }
+
+/* ── Add Ticker Modal ─────────────────────────────────── */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10,12,15,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+.modal {
+  background: #1a1d22;
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 340px;
+  font-family: var(--font-sans);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+.modal-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+}
+.close-btn {
+  width: 28px; height: 28px;
+  background: rgba(255,255,255,0.07);
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+  transition: background 0.15s;
+}
+.close-btn:hover { background: rgba(255,255,255,0.13); }
+.input-wrapper { position: relative; margin-bottom: 0.75rem; }
+.ticker-input {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1.5px solid #1adb8f;
+  border-radius: 8px;
+  padding: 10px 38px 10px 12px;
+  font-size: 14px;
+  color: #fff;
+  outline: none;
+  font-family: var(--font-sans);
+  letter-spacing: 0.03em;
+}
+.ticker-input::placeholder { color: rgba(255,255,255,0.25); }
+.search-icon {
+  position: absolute;
+  right: 11px; top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255,255,255,0.3);
+  font-size: 16px;
+  pointer-events: none;
+}
+.suggestions {
+  background: #13161a;
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+  display: none;
+}
+.suggestions.visible { display: block; }
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 0.5px solid rgba(255,255,255,0.05);
+  transition: background 0.1s;
+}
+.suggestion-item:last-child { border-bottom: none; }
+.suggestion-item:hover, .suggestion-item.active {
+  background: rgba(26,219,143,0.1);
+}
+.suggestion-left { display: flex; align-items: center; gap: 10px; }
+.ticker-badge {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: #1adb8f;
+  background: rgba(26,219,143,0.12);
+  border-radius: 4px;
+  padding: 2px 6px;
+  min-width: 90px;
+  text-align: center;
+}
+.company-name {
+  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+}
+.suggestion-right { text-align: right; }
+.price { font-size: 13px; font-weight: 500; color: #fff; }
+.change-up { font-size: 11px; color: #1adb8f; }
+.change-down { font-size: 11px; color: #ff5a5a; }
+.company-input {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+  outline: none;
+  font-family: var(--font-sans);
+  margin-bottom: 0.75rem;
+  transition: border 0.15s;
+}
+.company-input:focus { border-color: rgba(26,219,143,0.4); }
+.company-input::placeholder { color: rgba(255,255,255,0.2); }
+.add-btn {
+  width: 100%;
+  background: #1adb8f;
+  border: none;
+  border-radius: 8px;
+  padding: 11px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0d1210;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+.add-btn:hover { background: #16c47f; }
+.add-btn:disabled { opacity: 0.35; cursor: default; }
+.no-results {
+  padding: 12px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.3);
+  text-align: center;
+}

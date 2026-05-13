@@ -34,6 +34,12 @@ export const WATCHLIST_DEFAULT = [
   { ticker: "INFY.NS",       name: "Infosys",        price: null, change: null, base: 1167, type: "India" },
   { ticker: "ICICIBANK.NS",  name: "ICICI Bank",     price: null, change: null, base: 1279, type: "India" },
   { ticker: "SBIN.NS",       name: "SBI",            price: null, change: null, base: 788,  type: "India" },
+  { ticker: "BHARTIARTL.NS", name: "Bharti Airtel",  price: null, change: null, base: 1800, type: "India" },
+  { ticker: "WIPRO.NS",      name: "Wipro",          price: null, change: null, base: 450,  type: "India" },
+  { ticker: "AXISBANK.NS",   name: "Axis Bank",      price: null, change: null, base: 1100, type: "India" },
+  { ticker: "TATAMOTORS.NS", name: "Tata Motors",    price: null, change: null, base: 650,  type: "India" },
+  { ticker: "MARUTI.NS",     name: "Maruti Suzuki",  price: null, change: null, base: 12400, type: "India" },
+  { ticker: "SUNPHARMA.NS",  name: "Sun Pharma",     price: null, change: null, base: 1650, type: "India" },
 ];
 
 export const SUGGESTIONS = [
