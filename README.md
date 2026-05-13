@@ -3,7 +3,7 @@
 > Your personal AI analyst. Add your portfolio → get risk alerts, earnings briefs, and weekly intelligence reports.
 
 **Live:** https://finance-ai-8qu9.vercel.app  
-**Stack:** FastAPI · React · Groq (llama-3.3-70b) · RAG pipeline
+**Stack:** FastAPI · React · Gemini 2.5 Flash · RAG pipeline
 
 ---
 
@@ -61,9 +61,9 @@ FastAPI Backend (Render/Fly)
    ┌────┴────┐
    ▼         ▼
 RAG Layer   Inference Layer
-  yfinance    Groq LLM
-  Finnhub     (llama-3.3-70b)
-  NewsAPI     5-retry backoff
+  yfinance    Gemini LLM
+  Finnhub     (gemini-2.5-flash)
+  NewsAPI     retry backoff
   EODHD       per-agent prompts
   CoinGecko
   Alpha Vantage
@@ -87,7 +87,7 @@ uvicorn main:app --reload --port 8001
 
 **Required env vars:**
 ```
-GROQ_API_KEY=        # Groq API key (free tier available)
+GEMINI_API_KEY=      # Google AI Studio API key
 NEWS_API_KEY=        # newsapi.org
 ALPHA_VANTAGE_KEY=   # alphavantage.co (free tier)
 ```
@@ -95,6 +95,7 @@ ALPHA_VANTAGE_KEY=   # alphavantage.co (free tier)
 **Optional:**
 ```
 FINNHUB_API_KEY=     # Finnhub (better news quality)
+GEMINI_MODEL=        # defaults to gemini-2.5-flash
 REDIS_URL=           # Redis for session memory (defaults to localhost:6379)
 ALLOWED_ORIGIN=      # Production frontend URL for CORS
 ```
@@ -120,7 +121,7 @@ npm start
 | CoinGecko | Crypto prices + OHLC | Free, no key |
 | EODHD | US + NSE OHLC (paid plan) | Falls back to Yahoo |
 | Alpha Vantage | NSE quotes fallback | Free tier: 5 calls/min |
-| Groq | LLM inference | Free tier: 30 RPM |
+| Gemini | LLM inference | Uses `GEMINI_MODEL`, defaults to Gemini 2.5 Flash |
 
 ---
 

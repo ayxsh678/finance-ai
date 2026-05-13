@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_URL     = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
-PRIMARY_MODEL   = "gemini-2.0-flash"
-FALLBACK_MODEL  = "gemini-2.0-flash-lite"
+PRIMARY_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+FALLBACK_MODEL  = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite")
 MAX_RETRIES     = 2
 BASE_BACKOFF    = 0.5
 MAX_BACKOFF     = 8.0
@@ -78,7 +78,10 @@ def _attempt_call(model: str, messages: list[dict], max_tokens: int,
             return None, "Error: Invalid GEMINI_API_KEY.", False
 
         if status == 404:
-            return None, f"Error: Gemini model '{model}' not found.", False
+            return None, (
+                f"Error: Gemini model '{model}' not found. "
+                "Set GEMINI_MODEL to a valid model, for example 'gemini-2.5-flash'."
+            ), False
 
         if status in RETRY_STATUSES:
             last_error = (

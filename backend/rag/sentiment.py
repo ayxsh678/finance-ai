@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_URL     = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 MAX_RETRIES    = 2
 BASE_BACKOFF   = 1.0
 MAX_BACKOFF    = 6.0
@@ -223,10 +224,10 @@ def _fetch_google_news_rss(search_term: str, base_ticker: str) -> list[dict]:
         return []
 
 
-def _groq_post(payload: dict) -> dict | None:
-    """Shared Groq HTTP call with retry. Returns parsed JSON or None."""
+def _gemini_post(payload: dict) -> dict | None:
+    """Shared Gemini HTTP call with retry. Returns parsed JSON or None."""
     if not GEMINI_API_KEY:
-        logger.error("[Groq] GEMINI_API_KEY not configured")
+        logger.error("[Gemini] GEMINI_API_KEY not configured")
         return None
     
     headers = {
@@ -237,7 +238,7 @@ def _groq_post(payload: dict) -> dict | None:
         try:
             resp = requests.post(GEMINI_URL, headers=headers, json=payload, timeout=30)
         except requests.RequestException as e:
-            logger.warning("[Groq] network error (attempt %d): %s", attempt + 1, e)
+            logger.warning("[Gemini] network error (attempt %d): %s", attempt + 1, e)
             if attempt < MAX_RETRIES - 1:
                 _sleep_backoff(attempt)
                 continue
@@ -249,7 +250,7 @@ def _groq_post(payload: dict) -> dict | None:
                 raw = raw.replace("```json", "").replace("```", "").strip()
                 return json.loads(raw)
             except Exception as e:
-                logger.warning("[Groq] parse error: %s", e)
+                logger.warning("[Gemini] parse error: %s", e)
                 return None
 
         if resp.status_code in RETRY_STATUSES and attempt < MAX_RETRIES - 1:
@@ -261,12 +262,12 @@ def _groq_post(payload: dict) -> dict | None:
             error_body = resp.text[:200]
         except:
             error_body = "No response body"
-        logger.error("[Groq] status %d (attempt %d/%d): %s. Response: %s", 
+        logger.error("[Gemini] status %d (attempt %d/%d): %s. Response: %s", 
                      resp.status_code, attempt + 1, MAX_RETRIES, 
                      resp.reason or "Unknown", error_body)
         
         if resp.status_code == 403:
-            logger.critical("[Groq] 403 Forbidden - Check your GEMINI_API_KEY is valid and has necessary permissions")
+            logger.critical("[Gemini] 403 Forbidden - Check your GEMINI_API_KEY is valid and has necessary permissions")
             return None
 
     return None
@@ -478,7 +479,7 @@ def _heuristic_score(headlines: list[str]) -> tuple[float, str]:
     return score, label
 
 
-def _score_with_groq(ticker: str, headlines: list[str]) -> tuple[float | None, str]:
+def _score_with_gemini(ticker: str, headlines: list[str]) -> tuple[float | None, str]:
     if not headlines:
         logger.info("[sentiment] no headlines for %s; returning insufficient data", ticker)
         return None, "Insufficient Data"
@@ -508,9 +509,9 @@ CALIBRATION:
 
 Respond ONLY with the JSON object. No markdown."""
 
-    logger.debug("[sentiment] calling Groq for %s with %d headlines", ticker, len(headlines))
-    data = _groq_post({
-        "model":       "gemini-2.0-flash",
+    logger.debug("[sentiment] calling Gemini for %s with %d headlines", ticker, len(headlines))
+    data = _gemini_post({
+        "model":       GEMINI_MODEL,
         "messages":    [{"role": "user", "content": prompt}],
         "max_tokens":  150,
         "temperature": 0.1,
@@ -518,7 +519,7 @@ Respond ONLY with the JSON object. No markdown."""
 
     if not data:
         score, label = _heuristic_score(headlines)
-        logger.warning("[sentiment] ⚠️ Groq unavailable/unparseable for %s; falling back to heuristic score=%s label=%s", ticker, score, label)
+        logger.warning("[sentiment] Gemini unavailable/unparseable for %s; falling back to heuristic score=%s label=%s", ticker, score, label)
         return score, label
 
     try:
@@ -526,10 +527,10 @@ Respond ONLY with the JSON object. No markdown."""
         label = data.get("label", "Neutral")
         if label not in ("Bearish", "Neutral", "Bullish"):
             label = "Bullish" if score >= 66 else ("Bearish" if score <= 34 else "Neutral")
-        logger.info("[sentiment] ✓ Groq analysis for %s: score=%s label=%s", ticker, score, label)
+        logger.info("[sentiment] Gemini analysis for %s: score=%s label=%s", ticker, score, label)
         return score, label
     except Exception as e:
-        logger.error("[sentiment] ❌ parse error for %s from Groq response %s: %s", ticker, data, e)
+        logger.error("[sentiment] parse error for %s from Gemini response %s: %s", ticker, data, e)
         score, label = _heuristic_score(headlines)
         logger.warning("[sentiment] falling back to heuristic score=%s label=%s", score, label)
         return score, label
@@ -537,7 +538,7 @@ Respond ONLY with the JSON object. No markdown."""
 
 # ── Per-article impact scoring ─────────────────────────
 
-def _analyze_impact_with_groq(
+def _analyze_impact_with_gemini(
     company: str,
     ticker: str,
     articles: list[dict]
@@ -589,8 +590,8 @@ Return ONLY this JSON (no markdown):
   "sentiment_summary": "<2 sentences summarizing what this means for the stock>"
 }}"""
 
-    data = _groq_post({
-        "model":       "gemini-2.0-flash",
+    data = _gemini_post({
+        "model":       GEMINI_MODEL,
         "messages":    [{"role": "user", "content": prompt}],
         "max_tokens":  1500,
         "temperature": 0.2,
@@ -612,7 +613,7 @@ def get_sentiment(ticker: str, company_name: str = "") -> dict:
     logger.info("[sentiment] cache miss for %s; fetching headlines...", ticker)
     headlines    = _fetch_headlines(ticker, company_name)
     logger.info("[sentiment] %s fetched %d headline(s) for analysis", ticker, len(headlines))
-    score, label = _score_with_groq(ticker, headlines)
+    score, label = _score_with_gemini(ticker, headlines)
 
     result = {
         "ticker":         ticker,
@@ -649,7 +650,7 @@ def get_news_impact(ticker: str, company_name: str = "", days: int = 7) -> dict:
             _impact_cache[cache_key] = dict(result)
         return result
 
-    analysis = _analyze_impact_with_groq(company_name or ticker, ticker, articles)
+    analysis = _analyze_impact_with_gemini(company_name or ticker, ticker, articles)
     analyzed  = {
         a.get("index"): a
         for a in analysis.get("articles", [])

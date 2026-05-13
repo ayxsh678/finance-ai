@@ -375,7 +375,7 @@ function Trust() {
             { label: "TLS 1.3", sub: "All connections" },
             { label: "Firebase Auth", sub: "Identity layer" },
             { label: "No trade API", sub: "Read-only always" },
-            { label: "Gemini 2.0", sub: "AI inference" },
+            { label: "Gemini 2.5", sub: "AI inference" },
             { label: "No PII stored", sub: "Zero portfolio data" },
           ].map(({ label, sub }) => (
             <div key={label} className="ln-spec-item">
