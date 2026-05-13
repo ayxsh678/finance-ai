@@ -49,7 +49,7 @@ export default function MarketPage({
   const week52L = stockQuote?.week52_low  ?? null;
   const mktCap  = stockQuote?.market_cap  ?? null;
   const pe      = stockQuote?.pe_ratio    ?? null;
-  const relVol  = stockQuote?.rel_volume  ?? null;
+  const relVol  = stockQuote?.rel_volume ?? stockQuote?.rel_vol ?? null;
 
   const w52pct  = week52Bar(price, week52L, week52H);
 

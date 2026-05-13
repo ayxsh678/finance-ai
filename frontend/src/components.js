@@ -313,7 +313,7 @@ export function CompareTable({ data, ticker_a, ticker_b }) {
     { label: "EPS",       a: fmt(stockA.eps_actual ?? earnA.eps_actual), b: fmt(stockB.eps_actual ?? earnB.eps_actual) },
     { label: "52W High",  a: fmt(stockA.week52_high),      b: fmt(stockB.week52_high)      },
     { label: "52W Low",   a: fmt(stockA.week52_low),       b: fmt(stockB.week52_low)       },
-    { label: "Rel Vol",   a: fmt(stockA.rel_volume),       b: fmt(stockB.rel_volume)       },
+    { label: "Rel Vol",   a: fmt(stockA.rel_volume ?? stockA.rel_vol), b: fmt(stockB.rel_volume ?? stockB.rel_vol) },
   ];
   const hasAnyData = rows.some(row => row.a !== "—" || row.b !== "—");
   const isDown = (v) => typeof v === "string" && v.startsWith("-");
@@ -828,7 +828,8 @@ export function AuthModal({ onSuccess }) {
   const [loading, setLoading]   = useState(false);
 
   const submit = async () => {
-    if (!email || !password) return;
+    const emailValue = email?.trim();
+    if (!emailValue || !password) return;
     if (!auth) {
       setError(firebaseInitError || "Authentication is not configured.");
       return;
@@ -836,7 +837,7 @@ export function AuthModal({ onSuccess }) {
     setLoading(true); setError(""); setInfo("");
     try {
       if (mode === "login") {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, emailValue, password);
       } else {
         if (!username.trim()) {
           throw { code: "auth/username-required" };
@@ -848,10 +849,10 @@ export function AuthModal({ onSuccess }) {
         if (existing.exists()) {
           throw { code: "auth/username-already-in-use" };
         }
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, emailValue, password);
         const user = userCredential.user;
         await updateProfile(user, { displayName: usernameValue });
-        await setDoc(usernameRef, { uid: user.uid, email, created: serverTimestamp() });
+        await setDoc(usernameRef, { uid: user.uid, email: emailValue, created: serverTimestamp() });
         await setDoc(doc(db, "users", user.uid), { username: usernameValue, created: serverTimestamp() }, { merge: true });
       }
       onSuccess?.();
@@ -886,7 +887,8 @@ export function AuthModal({ onSuccess }) {
   };
 
   const resetPassword = async () => {
-    if (!email) {
+    const emailValue = email?.trim();
+    if (!emailValue) {
       setError("Enter your email to reset password.");
       setInfo("");
       return;
@@ -897,7 +899,11 @@ export function AuthModal({ onSuccess }) {
     }
     setLoading(true); setError(""); setInfo("");
     try {
-      await sendPasswordResetEmail(auth, email);
+      const actionCodeSettings = {
+        url: window.location.origin,
+        handleCodeInApp: false,
+      };
+      await sendPasswordResetEmail(auth, emailValue, actionCodeSettings);
       setInfo("Password reset sent. Check your inbox.");
     } catch (err) {
       console.error("[auth] reset code:", err.code, "msg:", err.message);
@@ -956,6 +962,7 @@ export function AuthModal({ onSuccess }) {
           {error && <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.neg }}>{error}</div>}
           {info && <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.pos }}>{info}</div>}
           <button className="auth-submit" onClick={submit} disabled={loading || !email || !password || !auth || (mode === "register" && !username.trim())}>
+            {loading ? (mode === "login" ? "Signing in..." : "Creating account...") : (mode === "login" ? "Sign In" : "Create Account")}
           </button>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0" }}>

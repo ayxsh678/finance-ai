@@ -578,7 +578,7 @@ Treat references like "this stock", "it", "this company", or "the current stock"
           marketCap: stockQuote?.market_cap,
           week52High: stockQuote?.week52_high,
           week52Low: stockQuote?.week52_low,
-          relVol: stockQuote?.rel_volume,
+          relVol: stockQuote?.rel_volume ?? stockQuote?.rel_vol,
           sentimentScore: sentiment?.score,
           sentimentLabel: sentiment?.label,
           convictionScore: conviction?.score,

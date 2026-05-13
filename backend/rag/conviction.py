@@ -206,7 +206,7 @@ def compute_conviction(ticker: str, company_name: str = "") -> dict:
         change_5d = _safe_float(stock.get("five_day_change"))
         week52_h  = _safe_float(stock.get("week52_high"))
         week52_l  = _safe_float(stock.get("week52_low"))
-        rel_vol   = _safe_float(stock.get("rel_volume"))
+        rel_vol   = _safe_float(stock.get("rel_volume") or stock.get("rel_vol"))
         pe        = _safe_float(stock.get("pe_ratio"))
         sent_sc   = _safe_float((sentiment_data or {}).get("score"))
 

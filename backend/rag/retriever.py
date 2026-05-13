@@ -172,6 +172,7 @@ def get_stock_data(ticker: str) -> dict:
             "week52_high":     info.get("fiftyTwoWeekHigh"),
             "week52_low":      info.get("fiftyTwoWeekLow"),
             "rel_volume":      rel_vol,
+            "rel_vol":         rel_vol,
         }
     except Exception as e:
         logger.warning("[yfinance] error for %s: %s", ticker, e)

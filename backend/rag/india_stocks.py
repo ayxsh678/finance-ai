@@ -198,6 +198,7 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
                 "week52_high":     info.get("fiftyTwoWeekHigh"),
                 "week52_low":      info.get("fiftyTwoWeekLow"),
                 "rel_volume":      rel_volume_ratio,
+                "rel_vol":         rel_volume_ratio,
                 "eps_actual":      info.get("trailingEps"),
             }
         else:
@@ -233,6 +234,7 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
                     "week52_high":     nse.get("week_high"),
                     "week52_low":      nse.get("week_low"),
                     "rel_volume":      nse.get("rel_vol"),
+                    "rel_vol":         nse.get("rel_vol"),
                     "eps_actual":      nse.get("eps"),
                 }
             else:
@@ -254,6 +256,7 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
                         "week52_high":     av_quote.get("week_high"),
                         "week52_low":      av_quote.get("week_low"),
                         "rel_volume":      av_quote.get("rel_vol"),
+                        "rel_vol":         av_quote.get("rel_vol"),
                         "eps_actual":      av_quote.get("eps"),
                     }
                 else:
