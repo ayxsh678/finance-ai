@@ -80,7 +80,7 @@ def generate_response(question: str, context: str, history: list[dict] | None = 
                 messages.append({"role": "assistant", "content": a})
     messages.append({"role": "user", "content": user_prompt})
 
-    return _call_groq(messages)
+    return _call_groq(messages, max_tokens=4096)
 
 
 def generate_portfolio_summary(tickers: list[str], context: str) -> str:
