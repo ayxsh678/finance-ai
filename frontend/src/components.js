@@ -653,6 +653,102 @@ export function TickerAutocomplete({ value, onChange, onSelect, onKeyDown, place
 }
 
 // ── Chat bubble ───────────────────────────────────────────
+const SECTION_LABELS = new Set([
+  "WHAT",
+  "WHY",
+  "CONTEXT",
+  "SIGNAL",
+  "AVOID",
+  "BOTTOM LINE",
+  "PORTFOLIO HEALTH",
+  "CONCENTRATION",
+  "SECTOR EXPOSURE",
+  "RISK FLAGS",
+  "DIVERSIFICATION",
+  "WATCHLIST",
+  "HEADLINE",
+  "TRACK RECORD",
+  "KEY METRICS TO WATCH",
+  "RISK",
+  "ANALYST CONSENSUS",
+  "TRADE SETUP",
+  "SUMMARY",
+  "BEST TRADE",
+  "WORST TRADE",
+  "PATTERN",
+  "LESSONS",
+]);
+
+function cleanMarkdownLine(line) {
+  return line
+    .replace(/\*\*/g, "")
+    .replace(/^#{1,6}\s+/, "")
+    .trim();
+}
+
+function parseKyraContent(content = "") {
+  const lines = String(content).split(/\r?\n/);
+  const blocks = [];
+
+  lines.forEach((raw) => {
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+
+    const line = cleanMarkdownLine(trimmed);
+    const sectionMatch = line.match(/^(?:\d+[.)]\s*)?([A-Z][A-Z /&-]{2,35}):\s*(.*)$/);
+    if (sectionMatch && SECTION_LABELS.has(sectionMatch[1])) {
+      blocks.push({ type: "section", label: sectionMatch[1], text: sectionMatch[2] });
+      return;
+    }
+
+    const bulletMatch = line.match(/^[-•]\s+(.*)$/);
+    if (bulletMatch) {
+      blocks.push({ type: "bullet", text: bulletMatch[1] });
+      return;
+    }
+
+    const numberedMatch = line.match(/^\d+[.)]\s+(.*)$/);
+    if (numberedMatch) {
+      blocks.push({ type: "paragraph", text: numberedMatch[1] });
+      return;
+    }
+
+    blocks.push({ type: "paragraph", text: line });
+  });
+
+  return blocks.length ? blocks : [{ type: "paragraph", text: content }];
+}
+
+export function MessageBody({ content }) {
+  const blocks = parseKyraContent(content);
+
+  return (
+    <div className="message-body">
+      {blocks.map((block, i) => {
+        if (block.type === "section") {
+          return (
+            <div key={i} className="message-section">
+              <div className="message-section-label">{block.label}</div>
+              {block.text && <div className="message-section-text">{block.text}</div>}
+            </div>
+          );
+        }
+
+        if (block.type === "bullet") {
+          return (
+            <div key={i} className="message-bullet">
+              <span aria-hidden="true" />
+              <div>{block.text}</div>
+            </div>
+          );
+        }
+
+        return <p key={i}>{block.text}</p>;
+      })}
+    </div>
+  );
+}
+
 export function ChatBubble({ msg }) {
   const isUser  = msg.role === "user";
   const [copied, setCopied] = useState(false);
@@ -667,7 +763,7 @@ export function ChatBubble({ msg }) {
   return (
     <div className={isUser ? "chat-bubble-user" : "chat-bubble-assistant"} style={{ position: "relative" }}>
       <div>
-        {msg.content}
+        {isUser ? msg.content : <MessageBody content={msg.content} />}
         {!isUser && (
           <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
             {msg.sources?.map((s, i) => (

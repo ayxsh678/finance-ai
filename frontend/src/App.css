@@ -214,7 +214,45 @@
   font-size: 14px;
   line-height: 1.7;
   color: var(--text);
-  white-space: pre-wrap;
+}
+.message-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.message-body p {
+  margin: 0;
+  color: var(--text);
+}
+.message-section {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.message-section-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+.message-section-text {
+  color: var(--text);
+}
+.message-bullet {
+  display: grid;
+  grid-template-columns: 8px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+.message-bullet span {
+  width: 4px;
+  height: 4px;
+  margin-top: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.8;
 }
 .chat-input-bar {
   border-top: 1px solid var(--border);
@@ -938,7 +976,20 @@
   font-size: 13px;
   line-height: 1.7;
   color: var(--text);
-  white-space: pre-wrap;
+}
+.kyra-bubble-assistant .message-body {
+  gap: 9px;
+}
+.kyra-bubble-assistant .message-section-label {
+  font-size: 9px;
+  letter-spacing: 0.07em;
+}
+.kyra-bubble-assistant .message-bullet {
+  grid-template-columns: 7px 1fr;
+  gap: 7px;
+}
+.kyra-bubble-assistant .message-bullet span {
+  margin-top: 9px;
 }
 .kyra-typing {
   display: flex;

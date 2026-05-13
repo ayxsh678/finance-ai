@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import { Sparkles, X, Maximize2, Send, ChevronRight } from "lucide-react";
+import { MessageBody } from "./components";
 
 const SUGGESTIONS = {
   market: (ctx) => [
@@ -115,7 +116,7 @@ export default function KyraPanel({
           <div className="kyra-messages">
             {messages.map((m, i) => (
               <div key={i} className={`kyra-bubble kyra-bubble-${m.role}`}>
-                <div>{m.content}</div>
+                <div>{m.role === "assistant" ? <MessageBody content={m.content} /> : m.content}</div>
               </div>
             ))}
             {loading && (
