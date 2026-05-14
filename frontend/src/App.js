@@ -22,6 +22,7 @@ import ChatPage      from "./pages/ChatPage";
 import WatchlistPage from "./pages/WatchlistPage";
 import ComparePage   from "./pages/ComparePage";
 import PortfolioPage from "./pages/PortfolioPage";
+import DebatePage    from "./pages/DebatePage";
 import AlertsPage    from "./pages/AlertsPage";
 
 export default function App() {
@@ -659,7 +660,7 @@ Treat references like "this stock", "it", "this company", or "the current stock"
 
   // ── Mobile "More" sub-nav ─────────────────────────────
   function MobileMoreNav() {
-    const sections = [{ id: "watchlist", label: "Watchlist" }, { id: "compare", label: "Compare" }, { id: "portfolio", label: "Portfolio" }, { id: "alerts", label: "Alerts" }, { id: "profile", label: "Profile" }];
+    const sections = [{ id: "watchlist", label: "Watchlist" }, { id: "compare", label: "Compare" }, { id: "debate", label: "Debate" }, { id: "portfolio", label: "Portfolio" }, { id: "alerts", label: "Alerts" }, { id: "profile", label: "Profile" }];
     return (
       <div style={{ display: "flex", gap: 6, padding: "10px 16px", borderBottom: `1px solid ${C.border}`, background: C.bg }}>
         {sections.map(({ id, label }) => (
@@ -689,6 +690,8 @@ Treat references like "this stock", "it", "this company", or "the current stock"
         return <WatchlistPage watchlist={watchlist} sentiments={sentiments} sentimentLoading={sentimentLoading} handleSelectStock={handleSelectStock} onAdd={addToFirestoreWatchlist} onRemove={removeFromFirestoreWatchlist} />;
       case "compare":
         return <ComparePage isMobile={isMobile} compareA={compareA} compareB={compareB} setCompareA={setCompareA} setCompareB={setCompareB} compareData={compareData} compareLoading={compareLoading} runComparison={runComparison} chartDays={chartDays} />;
+      case "debate":
+        return <DebatePage isMobile={isMobile} />;
       case "portfolio":
         return <PortfolioPage isMobile={isMobile} portMode={portMode} setPortMode={setPortMode} holdings={holdings} setHoldings={setHoldings} holdingInput={holdingInput} setHoldingInput={setHoldingInput} holdingError={holdingError} setHoldingError={setHoldingError} analysisResult={analysisResult} setAnalysisResult={setAnalysisResult} analysisLoading={analysisLoading} setAnalysisLoading={setAnalysisLoading} portfolio={portfolio} portfolioData={portfolioData} portfolioLoading={portfolioLoading} portfolioInput={portfolioInput} setPortfolioInput={setPortfolioInput} runPortfolioAnalysis={runPortfolioAnalysis} addToPortfolio={addToPortfolio} removeFromPortfolio={removeFromPortfolio} />;
       case "alerts":

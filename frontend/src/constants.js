@@ -1,6 +1,6 @@
 import {
   TrendingUp, MessageSquare, Bookmark, ArrowLeftRight, PieChart,
-  Bell, MoreHorizontal, LayoutDashboard,
+  Bell, MoreHorizontal, LayoutDashboard, Scales,
 } from "lucide-react";
 
 export const API_URL =
@@ -77,6 +77,7 @@ export const NAV_ITEMS = [
   { id: "chat",      label: "Chat",      Icon: MessageSquare   },
   { id: "watchlist", label: "Watchlist", Icon: Bookmark        },
   { id: "compare",   label: "Compare",   Icon: ArrowLeftRight  },
+  { id: "debate",    label: "Debate",    Icon: Scales          },
   { id: "portfolio", label: "Portfolio", Icon: PieChart        },
   { id: "alerts",    label: "Alerts",    Icon: Bell            },
 ];
@@ -88,7 +89,7 @@ export const MOBILE_TABS = [
   { id: "more",      label: "More",      Icon: MoreHorizontal  },
 ];
 
-export const MORE_SECTIONS = ["watchlist", "compare", "portfolio", "alerts"];
+export const MORE_SECTIONS = ["watchlist", "compare", "debate", "portfolio", "alerts"];
 
 // ── Chart helpers ─────────────────────────────────────────
 export const CHART_VALID_TICKER = /^[A-Za-z0-9._:&\-]{1,20}$/;

@@ -35,6 +35,7 @@ from rag.india_stocks import get_india_stock_data
 from rag.alerts import create_alert, get_alerts, delete_alert, check_alerts
 from rag.sentiment import get_sentiment, get_news_impact
 from rag.conviction import compute_conviction
+from rag.debate import run_asset_debate, run_portfolio_debate
 from rag.eodhd import get_ohlc
 from rag.india_ohlc import get_india_ohlc
 from rag.forex import detect_forex_query, get_forex_data, get_all_forex_snapshot, CURRENCY_PAIRS
@@ -42,7 +43,8 @@ from model.inference import (
     generate_response, generate_portfolio_summary,
     generate_comparison_verdict, generate_forex_insight,
     explain_term, generate_portfolio_analysis, generate_earnings_brief,
-    generate_portfolio_autopsy,
+    generate_portfolio_autopsy, generate_debate_case,
+    generate_debate_moderator,
 )
 
 logger = logging.getLogger(__name__)
@@ -108,6 +110,31 @@ class CompareRequest(BaseModel):
 class CompareFromChatRequest(BaseModel):
     query: str
     session_id: str | None = None
+
+class DebateRequest(BaseModel):
+    ticker: str
+    company_name: str | None = ""
+    time_range: str = "7d"
+    session_id: str | None = None
+
+class DebateFollowupRequest(BaseModel):
+    ticker: str
+    company_name: str | None = ""
+    agent: str = "bull"  # bull | bear | moderator
+    followup: str
+    time_range: str = "7d"
+    session_id: str | None = None
+
+class DebateResponse(BaseModel):
+    ticker: str
+    company_name: str | None = None
+    bull_case: str
+    bear_case: str
+    moderator_verdict: str
+    confidence_scores: dict
+    supporting_sources: list[str]
+    timestamps: dict
+    session_id: str
 
 class ForexRequest(BaseModel):
     pair: str
@@ -469,6 +496,62 @@ def portfolio_from_chat(req: PortfolioFromChatRequest):
             detail="No recognizable tickers found in your message"
         )
     return analyze_portfolio(PortfolioRequest(tickers=tickers, session_id=req.session_id))
+
+
+# ── Debate ─────────────────────────────────────────────
+
+@app.post("/api/debate", response_model=DebateResponse)
+def debate_asset(req: DebateRequest):
+    ticker = req.ticker.upper().strip()
+    if not ticker:
+        raise HTTPException(status_code=400, detail="Ticker cannot be empty")
+
+    session_id = req.session_id or create_session()
+    payload = run_asset_debate(ticker, company_name=req.company_name or "", time_range=req.time_range)
+    append_to_history(session_id, f"Bull vs Bear debate: {ticker}", payload["moderator_verdict"])
+    payload["session_id"] = session_id
+    return DebateResponse(**payload)
+
+
+@app.post("/api/debate/followup", response_model=GenerateResponse)
+def debate_followup(req: DebateFollowupRequest):
+    ticker = req.ticker.upper().strip()
+    if not ticker:
+        raise HTTPException(status_code=400, detail="Ticker cannot be empty")
+    if req.agent not in {"bull", "bear", "moderator"}:
+        raise HTTPException(status_code=400, detail="agent must be bull, bear, or moderator")
+
+    session_id = req.session_id or create_session()
+    if req.agent == "moderator":
+        result = run_asset_debate(ticker, company_name=req.company_name or "", time_range=req.time_range)
+        answer = generate_debate_moderator(ticker, result["session_context"]["context"], result["bull_case"], result["bear_case"], followup=req.followup)
+    else:
+        answer = generate_debate_case(ticker, run_asset_debate(ticker, company_name=req.company_name or "", time_range=req.time_range)["session_context"]["context"], role=req.agent, followup=req.followup)
+
+    append_to_history(session_id, f"Debate follow-up {req.agent} for {ticker}", answer)
+    return GenerateResponse(answer=answer, session_id=session_id)
+
+
+@app.get("/api/debate/history")
+def debate_history(session_id: str):
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id is required")
+
+    history = get_history(session_id)
+    debate_records = [message for message in history if "Debate" in message.get("content", "") or "Bull vs Bear" in message.get("content", "")]
+    return {"session_id": session_id, "history": debate_records}
+
+
+@app.post("/api/debate/portfolio", response_model=DebateResponse)
+def debate_portfolio(req: PortfolioAnalysisRequest):
+    if not req.holdings:
+        raise HTTPException(status_code=400, detail="No holdings provided")
+
+    session_id = req.session_id or create_session()
+    payload = run_portfolio_debate(req.holdings, time_range="7d")
+    append_to_history(session_id, "Bull vs Bear portfolio debate", payload["moderator_verdict"])
+    payload["session_id"] = session_id
+    return DebateResponse(**payload)
 
 
 # ── Comparison ─────────────────────────────────────────

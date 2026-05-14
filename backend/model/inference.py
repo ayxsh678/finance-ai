@@ -4,7 +4,15 @@ import random
 import time
 
 import requests
-from model.prompts import GENERAL_QA, PORTFOLIO_ANALYSIS, EARNINGS_BRIEF, PORTFOLIO_AUTOPSY
+from model.prompts import (
+    GENERAL_QA,
+    PORTFOLIO_ANALYSIS,
+    EARNINGS_BRIEF,
+    PORTFOLIO_AUTOPSY,
+    DEBATE_BULL,
+    DEBATE_BEAR,
+    DEBATE_MODERATOR,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -276,6 +284,62 @@ Be honest — the goal is actionable learning, not validation."""
         {"role": "system", "content": PORTFOLIO_AUTOPSY},
         {"role": "user",   "content": user_message},
     ], max_tokens=700)
+
+
+def generate_debate_case(ticker: str, context: str, role: str,
+                         asset_type: str = "asset",
+                         followup: str | None = None) -> str:
+    persona = DEBATE_BULL if role == "bull" else DEBATE_BEAR
+    followup_section = f"\n\n### Follow-up question:\n{followup}" if followup else ""
+    user_message = f"""### Asset: {ticker}
+### Context:
+{context}
+
+### Task:
+Provide a {role.upper()} thesis for this asset or portfolio.
+Use the context above to generate:
+- THESIS
+- SUPPORTING EVIDENCE
+- NEWS
+- TECHNICALS
+- {'RISK CATALYSTS' if role == 'bear' else 'RISKS'}
+- CONFIDENCE
+{followup_section}"""
+
+    return _call_gemini([
+        {"role": "system", "content": persona},
+        {"role": "user",   "content": user_message},
+    ], max_tokens=1400, temperature=0.45)
+
+
+def generate_debate_moderator(ticker: str, context: str,
+                              bull_case: str, bear_case: str,
+                              followup: str | None = None) -> str:
+    followup_section = f"\n\n### Follow-up question:\n{followup}" if followup else ""
+    user_message = f"""### Asset: {ticker}
+### Context:
+{context}
+
+### Bull case:
+{bull_case}
+
+### Bear case:
+{bear_case}
+
+### Task:
+Evaluate both arguments and produce:
+- VERDICT
+- BULL STRENGTHS
+- BEAR STRENGTHS
+- KEY ASSUMPTIONS
+- PROBABILITY SPLIT
+- RISK OUTLOOK
+{followup_section}"""
+
+    return _call_gemini([
+        {"role": "system", "content": DEBATE_MODERATOR},
+        {"role": "user",   "content": user_message},
+    ], max_tokens=1500, temperature=0.35)
 
 
 def explain_term(term: str, context: str = "",
