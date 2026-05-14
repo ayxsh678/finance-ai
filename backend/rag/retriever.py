@@ -150,14 +150,19 @@ def get_stock_data(ticker: str) -> dict:
 
         # 5-day change — wrap separately so timeout doesn't kill price data
         five_day_change = None
+        volatility = None
         try:
-            hist = t.history(period="5d", interval="1d", timeout=8)
+            hist = t.history(period="30d", interval="1d", timeout=8)
             if len(hist) >= 2:
                 old = hist["Close"].iloc[0]
                 new = hist["Close"].iloc[-1]
                 five_day_change = round(((new - old) / old) * 100, 2) if old else None
+                # Calculate volatility as std dev of daily returns
+                returns = hist["Close"].pct_change().dropna()
+                if len(returns) > 0:
+                    volatility = round(returns.std() * 100, 2)  # in %
         except Exception:
-            pass  # five_day_change stays None — price data still returns fine
+            pass  # five_day_change and volatility stay None — price data still returns fine
 
         return {
             "ticker":          ticker,
@@ -165,6 +170,9 @@ def get_stock_data(ticker: str) -> dict:
             "price":           info.get("currentPrice") or info.get("regularMarketPrice"),
             "change":          info.get("regularMarketChangePercent"),
             "five_day_change": five_day_change,
+            "volatility":      volatility,
+            "sector":          info.get("sector"),
+            "industry":        info.get("industry"),
             "market":          "NSE/BSE" if (ticker.upper().endswith(".NS") or ticker.upper().endswith(".BO")) else "US",
             "currency":        info.get("currency", "USD"),
             "market_cap":      info.get("marketCap"),
@@ -173,6 +181,7 @@ def get_stock_data(ticker: str) -> dict:
             "week52_low":      info.get("fiftyTwoWeekLow"),
             "rel_volume":      rel_vol,
             "rel_vol":         rel_vol,
+            "average_volume":  avg_vol,
         }
     except Exception as e:
         logger.warning("[yfinance] error for %s: %s", ticker, e)

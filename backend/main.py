@@ -662,6 +662,10 @@ def analyze_portfolio_v2(req: PortfolioAnalysisRequest):
             "cost_basis":     round(cost_val, 2),
             "pnl_pct":        round(pnl_pct, 2),
             "weight":         0.0,
+            "volatility":     data.get("volatility"),
+            "sector":         data.get("sector"),
+            "industry":       data.get("industry"),
+            "average_volume": data.get("average_volume"),
             "pe_ratio":       data.get("pe_ratio"),
             "week52_high":    data.get("week52_high"),
             "week52_low":     data.get("week52_low"),
@@ -699,15 +703,81 @@ def analyze_portfolio_v2(req: PortfolioAnalysisRequest):
             action="Consider adding Nifty 50 large-caps for domestic exposure",
         ))
 
+    # Sector exposure risk
+    from collections import defaultdict
+    sector_weights = defaultdict(float)
+    for item in holdings_summary:
+        sector = item.get("sector") or "Unknown"
+        sector_weights[sector] += item["weight"]
+    for sector, weight in sector_weights.items():
+        if weight > 50:
+            risk_flags.append(RiskFlag(
+                severity="high",
+                flag=f"Sector concentration: {sector} sector is {weight:.1f}% of portfolio",
+                action=f"Diversify out of {sector} sector to reduce exposure",
+            ))
+        elif weight > 30:
+            risk_flags.append(RiskFlag(
+                severity="medium",
+                flag=f"High sector exposure: {sector} sector is {weight:.1f}% of portfolio",
+                action=f"Monitor {sector} sector; consider reducing exposure",
+            ))
+
+    # Volatility risk
+    portfolio_volatility = 0.0
+    total_weight = 0.0
+    for item in holdings_summary:
+        vol = item.get("volatility")
+        if vol is not None:
+            portfolio_volatility += vol * (item["weight"] / 100)
+            total_weight += item["weight"] / 100
+    if total_weight > 0:
+        portfolio_volatility /= total_weight
+    if portfolio_volatility > 3.0:  # 3% daily volatility threshold
+        risk_flags.append(RiskFlag(
+            severity="high",
+            flag=f"High portfolio volatility: {portfolio_volatility:.2f}% daily",
+            action="Consider adding stable assets or hedging strategies",
+        ))
+    elif portfolio_volatility > 2.0:
+        risk_flags.append(RiskFlag(
+            severity="medium",
+            flag=f"Elevated portfolio volatility: {portfolio_volatility:.2f}% daily",
+            action="Monitor volatility; prepare for potential drawdowns",
+        ))
+
+    # Liquidity risk
+    illiquid_count = 0
+    for item in holdings_summary:
+        avg_vol = item.get("average_volume")
+        if avg_vol and avg_vol < 100000:  # Low volume threshold
+            illiquid_count += 1
+            if item["weight"] > 10:
+                risk_flags.append(RiskFlag(
+                    severity="medium",
+                    flag=f"Low liquidity: {item['ticker']} has low average volume ({avg_vol:,.0f})",
+                    action=f"Avoid large trades in {item['ticker']}; consider more liquid alternatives",
+                ))
+    if illiquid_count > len(holdings_summary) / 2:
+        risk_flags.append(RiskFlag(
+            severity="high",
+            flag=f"Portfolio illiquidity: {illiquid_count}/{len(holdings_summary)} holdings have low volume",
+            action="Rebalance towards more liquid stocks to improve tradability",
+        ))
+
     # Build LLM context string
     ctx_lines = [
         f"Portfolio Total Value: ₹{total_value:,.2f}",
+        f"Portfolio Volatility: {portfolio_volatility:.2f}% daily" if portfolio_volatility else "Portfolio Volatility: N/A",
         f"Holdings ({len(holdings_summary)}):",
     ]
     for item in holdings_summary:
+        vol = item.get('volatility')
+        sector = item.get('sector') or 'N/A'
         ctx_lines.append(
             f"  {item['ticker']} ({item['name']}): {item['weight']:.1f}% weight | "
             f"P&L: {item['pnl_pct']:+.2f}% | Price: ₹{item['current_price']} | "
+            f"Vol: {vol:.2f}% | Sector: {sector} | "
             f"P/E: {item.get('pe_ratio') or 'N/A'}"
         )
     if req.user_context:

@@ -22,7 +22,7 @@ Broker apps show you charts. Fintrest tells you what to do about them.
 | **Earnings Intelligence** | Pre-earnings research note for any stock: next date, EPS consensus, key metrics to watch, post-earnings risk. |
 | **Portfolio Autopsy** | Submit your trade history. Get a FIFO P&L breakdown + AI narrative on what worked, what didn't, and why. |
 | **AI Q&A** | Ask anything about Indian stocks. Grounded answers in WHAT/WHY/CONTEXT/SIGNAL/AVOID format, sourced from live data. |
-| **Sentiment Analysis** | News sentiment score per ticker. Bullish/neutral/bearish with per-article impact scoring. |
+| **Sentiment Analysis** | News + social media sentiment score per ticker (Reddit, Twitter). Bullish/neutral/bearish with combined scoring. |
 | **Price Alerts** | Set above/below price alerts per ticker. Redis-backed, session-scoped. |
 | **Stock Comparison** | Side-by-side comparison of two stocks with AI verdict. |
 | **Forex Analysis** | Live rates + macro context for major currency pairs including USD/INR. |

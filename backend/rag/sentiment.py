@@ -8,6 +8,7 @@ import time
 import xml.etree.ElementTree as ET
 from urllib.parse import quote as urlquote
 import requests
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from datetime import datetime, timedelta
 from cachetools import TTLCache
 
@@ -144,6 +145,16 @@ FINANCIAL_SIGNALS = [
     "stock", "share price", "investor", "fund", "rally", "decline", "fell",
     "surged", "dropped", "gained", "slipped", "beat", "missed", "raised",
 ]
+
+# Social Media APIs
+REDDIT_CLIENT_ID = os.getenv("REDDIT_CLIENT_ID")
+REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET")
+REDDIT_USER_AGENT = "FintrestSentiment/1.0"
+
+TWITTER_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
+
+# Sentiment Analyzer
+_vader_analyzer = SentimentIntensityAnalyzer()
 
 # ── Caches ─────────────────────────────────────────────
 _cache: TTLCache        = TTLCache(maxsize=200, ttl=2 * 60 * 60)  # 2 hours
@@ -413,8 +424,93 @@ def _fetch_headlines(ticker: str, company_name: str = "") -> list[str]:
         title = a.get("title", "")
         desc  = a.get("description", "")
         headlines.append(f"{title}. {desc}" if desc else title)
-    logger.debug("[sentiment] _fetch_headlines: converted to %d headlines for %s", len(headlines), ticker)
+
+    # Add social media posts
+    reddit_posts = _fetch_reddit_posts(ticker, company_name, limit=10)
+    twitter_tweets = _fetch_twitter_tweets(ticker, company_name, limit=10)
+    headlines.extend(reddit_posts)
+    headlines.extend(twitter_tweets)
+
+    logger.debug("[sentiment] _fetch_headlines: converted to %d headlines + social for %s", len(headlines), ticker)
     return headlines
+
+
+# ── Social Media Sentiment ─────────────────────────────
+
+def _fetch_reddit_posts(ticker: str, company_name: str = "", limit: int = 25) -> list[str]:
+    """Fetch recent Reddit posts mentioning the ticker or company."""
+    if not REDDIT_CLIENT_ID or not REDDIT_CLIENT_SECRET:
+        logger.warning("[Reddit] API credentials not configured")
+        return []
+
+    try:
+        import praw
+        reddit = praw.Reddit(
+            client_id=REDDIT_CLIENT_ID,
+            client_secret=REDDIT_CLIENT_SECRET,
+            user_agent=REDDIT_USER_AGENT,
+        )
+
+        # Subreddits to search: investing, IndianStreetBets, stocks, wallstreetbets
+        subreddits = ["investing", "stocks", "wallstreetbets", "IndianStreetBets"]
+        posts = []
+
+        search_term = company_name or ticker
+        for subreddit_name in subreddits:
+            try:
+                subreddit = reddit.subreddit(subreddit_name)
+                for post in subreddit.search(search_term, sort="new", time_filter="week", limit=limit//len(subreddits)):
+                    posts.append(f"{post.title} {post.selftext}")
+            except Exception as e:
+                logger.warning("[Reddit] Error searching r/%s: %s", subreddit_name, e)
+
+        return posts[:limit]
+    except ImportError:
+        logger.warning("[Reddit] PRAW not installed")
+        return []
+    except Exception as e:
+        logger.warning("[Reddit] Error fetching posts: %s", e)
+        return []
+
+
+def _fetch_twitter_tweets(ticker: str, company_name: str = "", limit: int = 25) -> list[str]:
+    """Fetch recent Twitter tweets mentioning the ticker or company."""
+    if not TWITTER_BEARER_TOKEN:
+        logger.warning("[Twitter] Bearer token not configured")
+        return []
+
+    try:
+        # Use Twitter API v2 recent search
+        headers = {"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}
+        query = f'("{company_name}" OR "{ticker}") -is:retweet lang:en'
+        params = {
+            "query": query,
+            "max_results": limit,
+            "tweet.fields": "text,created_at",
+            "sort_order": "recency"
+        }
+        url = "https://api.twitter.com/2/tweets/search/recent"
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        tweets = [tweet["text"] for tweet in data.get("data", [])]
+        return tweets
+    except Exception as e:
+        logger.warning("[Twitter] Error fetching tweets: %s", e)
+        return []
+
+
+def _analyze_social_sentiment(texts: list[str]) -> float:
+    """Analyze sentiment of social media texts using VADER."""
+    if not texts:
+        return 0.0
+
+    scores = []
+    for text in texts:
+        sentiment = _vader_analyzer.polarity_scores(text)
+        scores.append(sentiment['compound'])
+
+    return sum(scores) / len(scores) if scores else 0.0
 
 
 # ── Aggregate sentiment scoring ────────────────────────
@@ -615,12 +711,24 @@ def get_sentiment(ticker: str, company_name: str = "") -> dict:
     logger.info("[sentiment] %s fetched %d headline(s) for analysis", ticker, len(headlines))
     score, label = _score_with_gemini(ticker, headlines)
 
+    # Separate social media sentiment
+    reddit_posts = _fetch_reddit_posts(ticker, company_name, limit=10)
+    twitter_tweets = _fetch_twitter_tweets(ticker, company_name, limit=10)
+    social_texts = reddit_posts + twitter_tweets
+    social_score = _analyze_social_sentiment(social_texts) * 100  # Convert to 0-100 scale
+
+    # Combine news and social sentiment (weighted average: 70% news, 30% social)
+    combined_score = (score * 0.7) + (social_score * 0.3) if score is not None else social_score
+
     result = {
         "ticker":         ticker,
-        "score":          score,
+        "score":          round(combined_score, 2) if combined_score is not None else None,
         "label":          label,
         "headline_count": len(headlines),
         "headlines":      headlines[:5],
+        "social_score":   round(social_score, 2),
+        "reddit_posts":   len(reddit_posts),
+        "twitter_tweets": len(twitter_tweets),
     }
 
     with _cache_lock:

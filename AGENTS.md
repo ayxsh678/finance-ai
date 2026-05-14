@@ -93,7 +93,7 @@ FastAPI (backend/main.py)
      │    ├── portfolio.py    — concurrent portfolio data fetch
      │    ├── india_stocks.py — NSE/BSE specific data
      │    ├── crypto.py       — CoinGecko data
-     │    ├── sentiment.py    — news sentiment scoring
+     │    ├── sentiment.py    — news + social media sentiment scoring (Reddit, Twitter)
      │    └── memory.py       — Redis session management
      │
      └── Inference Layer (model/)

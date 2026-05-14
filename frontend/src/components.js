@@ -814,6 +814,7 @@ function firebaseErrorMsg(code) {
     "auth/invalid-credential":   "Invalid email or password.",
     "auth/too-many-requests":    "Too many attempts. Try again later.",
     "auth/network-request-failed": "Network error. Check your connection.",
+    "auth/unauthorized-domain":  "Your current site is not authorized to use Firebase Auth. Add your app domain in the Firebase console and try again.",
   };
   return map[code] || "Authentication failed. Please try again.";
 }
@@ -863,7 +864,7 @@ export function AuthModal({ onSuccess }) {
       } else if (err.code === "auth/username-required") {
         setError("Choose a username.");
       } else {
-        setError(firebaseErrorMsg(err.code));
+        setError(err.message || firebaseErrorMsg(err.code));
       }
     }
     setLoading(false);
@@ -899,15 +900,11 @@ export function AuthModal({ onSuccess }) {
     }
     setLoading(true); setError(""); setInfo("");
     try {
-      const actionCodeSettings = {
-        url: window.location.origin,
-        handleCodeInApp: false,
-      };
-      await sendPasswordResetEmail(auth, emailValue, actionCodeSettings);
+      await sendPasswordResetEmail(auth, emailValue);
       setInfo("Password reset sent. Check your inbox.");
     } catch (err) {
       console.error("[auth] reset code:", err.code, "msg:", err.message);
-      setError(firebaseErrorMsg(err.code));
+      setError(err.message || firebaseErrorMsg(err.code));
     }
     setLoading(false);
   };
@@ -936,6 +933,12 @@ export function AuthModal({ onSuccess }) {
             </button>
           ))}
         </div>
+
+        {!auth && firebaseInitError && (
+          <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.neg, marginTop: 12 }}>
+            Firebase auth not configured: {firebaseInitError}
+          </div>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {mode === "register" && (

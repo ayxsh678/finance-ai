@@ -181,6 +181,13 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
 
         rel_volume_str = f"{rel_volume_ratio}x" if rel_volume_ratio else "N/A"
 
+        # Calculate volatility
+        volatility = None
+        if not hist_30d.empty and len(hist_30d) > 1:
+            returns = hist_30d["Close"].pct_change().dropna()
+            if len(returns) > 0:
+                volatility = round(returns.std() * 100, 2)
+
         currency = info.get("currency", "INR")
         symbol   = "₹" if currency == "INR" else "$"
 
@@ -191,6 +198,9 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
                 "price":           info.get("currentPrice") or info.get("regularMarketPrice"),
                 "change":          info.get("regularMarketChangePercent"),
                 "five_day_change": round(change_pct, 2),
+                "volatility":      volatility,
+                "sector":          info.get("sector"),
+                "industry":        info.get("industry"),
                 "market":          "NSE/BSE",
                 "currency":        currency,
                 "market_cap":      info.get("marketCap"),
@@ -199,6 +209,7 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
                 "week52_low":      info.get("fiftyTwoWeekLow"),
                 "rel_volume":      rel_volume_ratio,
                 "rel_vol":         rel_volume_ratio,
+                "average_volume":  avg_volume_30d,
                 "eps_actual":      info.get("trailingEps"),
             }
         else:
@@ -227,6 +238,9 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
                     "price":           nse.get("price"),
                     "change":          nse.get("change_pct"),
                     "five_day_change": nse.get("change_pct"),
+                    "volatility":      None,
+                    "sector":          None,
+                    "industry":        None,
                     "market":          "NSE/BSE",
                     "currency":        "INR",
                     "market_cap":      nse.get("mkt_cap"),
@@ -235,6 +249,7 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
                     "week52_low":      nse.get("week_low"),
                     "rel_volume":      nse.get("rel_vol"),
                     "rel_vol":         nse.get("rel_vol"),
+                    "average_volume":  None,
                     "eps_actual":      nse.get("eps"),
                 }
             else:
@@ -249,6 +264,9 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
                         "price":           av_quote.get("price"),
                         "change":          av_quote.get("change_pct"),
                         "five_day_change": av_quote.get("change_pct"),
+                        "volatility":      None,
+                        "sector":          None,
+                        "industry":        None,
                         "market":          "NSE/BSE",
                         "currency":        "INR",
                         "market_cap":      av_quote.get("mkt_cap"),
@@ -257,6 +275,7 @@ def get_india_stock_data(ticker: str, as_dict: bool = False):
                         "week52_low":      av_quote.get("week_low"),
                         "rel_volume":      av_quote.get("rel_vol"),
                         "rel_vol":         av_quote.get("rel_vol"),
+                        "average_volume":  None,
                         "eps_actual":      av_quote.get("eps"),
                     }
                 else:
