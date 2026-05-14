@@ -150,6 +150,20 @@ FINANCIAL_SIGNALS = [
 REDDIT_CLIENT_ID = os.getenv("REDDIT_CLIENT_ID")
 REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET")
 REDDIT_USER_AGENT = "FintrestSentiment/1.0"
+REDDIT_PUBLIC_USER_AGENT = "FintrestNewsBot/1.0"
+REDDIT_PUBLIC_SUBREDDITS = [
+    "stocks",
+    "investing",
+    "finance",
+    "economics",
+    "IndiaInvestments",
+    "SecurityAnalysis",
+    "worldnews",
+    "news",
+    "business",
+    "technology",
+    "CryptoCurrency",
+]
 
 TWITTER_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
 
@@ -439,38 +453,83 @@ def _fetch_headlines(ticker: str, company_name: str = "") -> list[str]:
 
 def _fetch_reddit_posts(ticker: str, company_name: str = "", limit: int = 25) -> list[str]:
     """Fetch recent Reddit posts mentioning the ticker or company."""
-    if not REDDIT_CLIENT_ID or not REDDIT_CLIENT_SECRET:
-        logger.warning("[Reddit] API credentials not configured")
-        return []
+    search_term = (company_name or ticker).strip()
 
-    try:
-        import praw
-        reddit = praw.Reddit(
-            client_id=REDDIT_CLIENT_ID,
-            client_secret=REDDIT_CLIENT_SECRET,
-            user_agent=REDDIT_USER_AGENT,
-        )
+    # Prefer authenticated Reddit if credentials are configured.
+    if REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET:
+        try:
+            import praw
+            reddit = praw.Reddit(
+                client_id=REDDIT_CLIENT_ID,
+                client_secret=REDDIT_CLIENT_SECRET,
+                user_agent=REDDIT_USER_AGENT,
+            )
 
-        # Subreddits to search: investing, IndianStreetBets, stocks, wallstreetbets
-        subreddits = ["investing", "stocks", "wallstreetbets", "IndianStreetBets"]
-        posts = []
+            subreddits = ["investing", "stocks", "wallstreetbets", "IndianStreetBets"]
+            posts = []
+            per_sub = max(1, limit // len(subreddits))
 
-        search_term = company_name or ticker
-        for subreddit_name in subreddits:
+            for subreddit_name in subreddits:
+                try:
+                    subreddit = reddit.subreddit(subreddit_name)
+                    for post in subreddit.search(search_term, sort="new", time_filter="week", limit=per_sub):
+                        text = f"{post.title} {getattr(post, 'selftext', '')}".strip()
+                        if text:
+                            posts.append(text)
+                except Exception as e:
+                    logger.warning("[Reddit] Error searching r/%s: %s", subreddit_name, e)
+
+            return posts[:limit]
+        except ImportError:
+            logger.warning("[Reddit] PRAW not installed, falling back to public JSON feeds")
+        except Exception as e:
+            logger.warning("[Reddit] Error fetching posts via PRAW: %s", e)
+
+    return _fetch_reddit_posts_public(search_term=search_term, limit=limit)
+
+
+def _fetch_reddit_posts_public(search_term: str = "", limit: int = 25) -> list[str]:
+    """Fetch public Reddit posts from configured subreddits using JSON feeds."""
+    headers = {
+        "User-Agent": REDDIT_PUBLIC_USER_AGENT,
+    }
+    posts: list[str] = []
+    per_sub = max(3, limit // len(REDDIT_PUBLIC_SUBREDDITS) + 1)
+
+    for subreddit in REDDIT_PUBLIC_SUBREDDITS:
+        if len(posts) >= limit:
+            break
+
+        for sort in ("new", "hot"):
+            if len(posts) >= limit:
+                break
+
+            url = f"https://www.reddit.com/r/{subreddit}/{sort}.json"
             try:
-                subreddit = reddit.subreddit(subreddit_name)
-                for post in subreddit.search(search_term, sort="new", time_filter="week", limit=limit//len(subreddits)):
-                    posts.append(f"{post.title} {post.selftext}")
-            except Exception as e:
-                logger.warning("[Reddit] Error searching r/%s: %s", subreddit_name, e)
+                resp = requests.get(url, headers=headers, params={"limit": per_sub}, timeout=10)
+                resp.raise_for_status()
+                data = resp.json()
+                children = data.get("data", {}).get("children", [])
 
-        return posts[:limit]
-    except ImportError:
-        logger.warning("[Reddit] PRAW not installed")
-        return []
-    except Exception as e:
-        logger.warning("[Reddit] Error fetching posts: %s", e)
-        return []
+                for child in children:
+                    if len(posts) >= limit:
+                        break
+                    item = child.get("data", {})
+                    title = item.get("title", "") or ""
+                    selftext = item.get("selftext", "") or ""
+                    text = f"{title} {selftext}".strip()
+                    if not text:
+                        continue
+
+                    if search_term:
+                        if re.search(re.escape(search_term), text, re.IGNORECASE):
+                            posts.append(text)
+                    else:
+                        posts.append(text)
+            except Exception as e:
+                logger.warning("[Reddit] Error fetching public feed r/%s/%s: %s", subreddit, sort, e)
+
+    return posts[:limit]
 
 
 def _fetch_twitter_tweets(ticker: str, company_name: str = "", limit: int = 25) -> list[str]:
