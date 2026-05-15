@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Scales, RefreshCcw } from "lucide-react";
+import { Scale, RefreshCcw } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { API_URL, C } from "../constants";
 import { TickerAutocomplete, LoadingLine } from "../components";
@@ -196,7 +196,7 @@ export default function DebatePage({ isMobile }) {
           <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: C.textSec, maxWidth: 620 }}>Launch a debate on any ticker or portfolio. Bull and Bear present opposing theses, and a neutral moderator summarizes the balanced verdict.</div>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, color: C.accent, fontSize: 13, fontWeight: 700 }}><Scales size={16} /> Debate mode</div>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, color: C.accent, fontSize: 13, fontWeight: 700 }}><Scale size={16} /> Debate mode</div>
         </div>
       </div>
 

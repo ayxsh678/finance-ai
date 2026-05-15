@@ -1,6 +1,6 @@
 import {
   TrendingUp, MessageSquare, Bookmark, ArrowLeftRight, PieChart,
-  Bell, MoreHorizontal, LayoutDashboard, Scales,
+  Bell, MoreHorizontal, LayoutDashboard, Scale,
 } from "lucide-react";
 
 export const API_URL =
@@ -77,7 +77,7 @@ export const NAV_ITEMS = [
   { id: "chat",      label: "Chat",      Icon: MessageSquare   },
   { id: "watchlist", label: "Watchlist", Icon: Bookmark        },
   { id: "compare",   label: "Compare",   Icon: ArrowLeftRight  },
-  { id: "debate",    label: "Debate",    Icon: Scales          },
+  { id: "debate",    label: "Debate",    Icon: Scale           },
   { id: "portfolio", label: "Portfolio", Icon: PieChart        },
   { id: "alerts",    label: "Alerts",    Icon: Bell            },
 ];
