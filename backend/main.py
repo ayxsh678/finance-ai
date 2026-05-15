@@ -64,16 +64,19 @@ def validate_config():
 
 # ── CORS ────────────────────────────────────────────────
 _allowed_origin = os.getenv("ALLOWED_ORIGIN", "http://localhost:3000")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         _allowed_origin,
+        "https://fintrest.app",
+        "https://www.fintrest.app",
         "https://finance-ai-8qu9.vercel.app",
         "http://localhost:3000",
         "http://localhost:3001",
         "http://localhost:5173",
     ],
-    allow_origin_regex=r"https://finance-ai-8qu9\.vercel\.app",
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_methods=["*"],
     allow_headers=["*"],
 )
