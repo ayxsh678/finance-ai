@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from datetime import datetime
 import time
 import concurrent.futures
 import uvicorn
@@ -35,7 +36,7 @@ from rag.india_stocks import get_india_stock_data
 from rag.alerts import create_alert, get_alerts, delete_alert, check_alerts
 from rag.sentiment import get_sentiment, get_news_impact
 from rag.conviction import compute_conviction
-from rag.debate import run_asset_debate, run_portfolio_debate
+from rag.debate import build_debate_context, run_asset_debate, run_portfolio_debate
 from rag.eodhd import get_ohlc
 from rag.india_ohlc import get_india_ohlc
 from rag.forex import detect_forex_query, get_forex_data, get_all_forex_snapshot, CURRENCY_PAIRS
@@ -124,6 +125,7 @@ class DebateFollowupRequest(BaseModel):
     followup: str
     time_range: str = "7d"
     session_id: str | None = None
+    session_context: dict | None = None
 
 class DebateResponse(BaseModel):
     ticker: str
@@ -131,10 +133,23 @@ class DebateResponse(BaseModel):
     bull_case: str
     bear_case: str
     moderator_verdict: str
+    technical_analysis: dict
+    market_snapshot: dict
     confidence_scores: dict
+    source_links: list[str]
     supporting_sources: list[str]
     timestamps: dict
+    session_context: dict | None = None
     session_id: str
+
+class TechnicalsResponse(BaseModel):
+    ticker: str
+    company_name: str | None = None
+    technical_analysis: dict
+    stock: dict
+    market_snapshot: dict
+    source_links: list[str]
+    generated_at: str
 
 class ForexRequest(BaseModel):
     pair: str
@@ -522,11 +537,38 @@ def debate_followup(req: DebateFollowupRequest):
         raise HTTPException(status_code=400, detail="agent must be bull, bear, or moderator")
 
     session_id = req.session_id or create_session()
+    debate_context = req.session_context or build_debate_context(ticker, company_name=req.company_name or "", time_range=req.time_range)
+
     if req.agent == "moderator":
-        result = run_asset_debate(ticker, company_name=req.company_name or "", time_range=req.time_range)
-        answer = generate_debate_moderator(ticker, result["session_context"]["context"], result["bull_case"], result["bear_case"], followup=req.followup)
+        bull_case = generate_debate_case(
+            ticker=ticker,
+            context=debate_context["context"],
+            role="bull",
+            asset_type=debate_context["asset_type"],
+            followup=None,
+        )
+        bear_case = generate_debate_case(
+            ticker=ticker,
+            context=debate_context["context"],
+            role="bear",
+            asset_type=debate_context["asset_type"],
+            followup=None,
+        )
+        answer = generate_debate_moderator(
+            ticker=ticker,
+            context=debate_context["context"],
+            bull_case=bull_case,
+            bear_case=bear_case,
+            followup=req.followup,
+        )
     else:
-        answer = generate_debate_case(ticker, run_asset_debate(ticker, company_name=req.company_name or "", time_range=req.time_range)["session_context"]["context"], role=req.agent, followup=req.followup)
+        answer = generate_debate_case(
+            ticker=ticker,
+            context=debate_context["context"],
+            role=req.agent,
+            asset_type=debate_context["asset_type"],
+            followup=req.followup,
+        )
 
     append_to_history(session_id, f"Debate follow-up {req.agent} for {ticker}", answer)
     return GenerateResponse(answer=answer, session_id=session_id)
@@ -552,6 +594,34 @@ def debate_portfolio(req: PortfolioAnalysisRequest):
     append_to_history(session_id, "Bull vs Bear portfolio debate", payload["moderator_verdict"])
     payload["session_id"] = session_id
     return DebateResponse(**payload)
+
+
+@app.get("/api/technicals/{symbol}", response_model=TechnicalsResponse)
+def get_technicals(symbol: str):
+    ticker = symbol.upper().strip()
+    if not ticker:
+        raise HTTPException(status_code=400, detail="Symbol cannot be empty")
+
+    context = build_debate_context(ticker)
+    return TechnicalsResponse(
+        ticker=context["ticker"],
+        company_name=context["company_name"],
+        technical_analysis={
+            "summary": context["technical_indicators"].get("summary"),
+            "indicators": context["technical_indicators"],
+        },
+        stock=context["stock"],
+        market_snapshot={
+            "price": context["stock"].get("price"),
+            "change": context["stock"].get("change"),
+            "market_cap": context["stock"].get("market_cap"),
+            "pe_ratio": context["stock"].get("pe_ratio"),
+            "volume": context["technical_indicators"].get("last_volume"),
+            "trend": context["technical_indicators"].get("trend_label"),
+        },
+        source_links=list(dict.fromkeys(context.get("supporting_links", []))),
+        generated_at=datetime.utcnow().isoformat() + "Z",
+    )
 
 
 # ── Comparison ─────────────────────────────────────────
