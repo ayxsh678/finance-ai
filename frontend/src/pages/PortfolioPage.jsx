@@ -1,4 +1,5 @@
-import { Plus, X, PieChart } from "lucide-react";
+import { useState } from "react";
+import { BarChart3, CalendarClock, Plus, Scale, Stethoscope, Trash2, X, PieChart } from "lucide-react";
 import { C, API_URL } from "../constants";
 import { TickerAutocomplete, EmptyState } from "../components";
 
@@ -11,6 +12,24 @@ export default function PortfolioPage({
 }) {
   const SEVERITY_COLOR = { high: C.neg, medium: C.neutral, low: C.pos };
   const SEVERITY_BG    = { high: "#2A1515", medium: "#1E1A0F", low: "#0F1E14" };
+  const [earningsTicker, setEarningsTicker] = useState("");
+  const [earningsBrief, setEarningsBrief] = useState(null);
+  const [earningsLoading, setEarningsLoading] = useState(false);
+  const [earningsError, setEarningsError] = useState("");
+  const [tradeInput, setTradeInput] = useState({ ticker: "", action: "buy", quantity: "", price: "", date: "" });
+  const [tradeError, setTradeError] = useState("");
+  const [trades, setTrades] = useState([]);
+  const [autopsyResult, setAutopsyResult] = useState(null);
+  const [autopsyLoading, setAutopsyLoading] = useState(false);
+
+  const labelStyle = { fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: C.textSec, marginBottom: 6 };
+  const metricLabelStyle = { fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 };
+  const modeOptions = [
+    { id: "analyze", label: "Risk", Icon: Scale },
+    { id: "earnings", label: "Earnings", Icon: CalendarClock },
+    { id: "autopsy", label: "Autopsy", Icon: Stethoscope },
+    { id: "simple", label: "Quick", Icon: BarChart3 },
+  ];
 
   const addHolding = () => {
     const t = holdingInput.ticker.trim().toUpperCase();
@@ -26,6 +45,65 @@ export default function PortfolioPage({
   };
 
   const removeHolding = (ticker) => setHoldings(prev => prev.filter(h => h.ticker !== ticker));
+
+  const runEarningsBrief = async (tickerOverride = null) => {
+    const ticker = (tickerOverride || earningsTicker).trim().toUpperCase();
+    if (!ticker) {
+      setEarningsError("Enter a ticker to generate an earnings brief.");
+      return;
+    }
+    setEarningsError("");
+    setEarningsLoading(true);
+    setEarningsBrief(null);
+    try {
+      const res = await fetch(`${API_URL}/earnings-brief/${encodeURIComponent(ticker)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.detail || `HTTP ${res.status}`);
+      setEarningsBrief(data);
+      setEarningsTicker(ticker);
+    } catch (err) {
+      setEarningsError(`Earnings brief failed: ${err.message}`);
+    }
+    setEarningsLoading(false);
+  };
+
+  const addTrade = () => {
+    const ticker = tradeInput.ticker.trim().toUpperCase();
+    const quantity = parseInt(tradeInput.quantity, 10);
+    const price = parseFloat(tradeInput.price);
+    const date = tradeInput.date;
+    if (!ticker) return setTradeError("Ticker is required.");
+    if (!date) return setTradeError("Trade date is required.");
+    if (!quantity || quantity <= 0) return setTradeError("Quantity must be a positive number.");
+    if (!price || price <= 0) return setTradeError("Price must be a positive number.");
+    setTradeError("");
+    setTrades(prev => [...prev, { ticker, action: tradeInput.action, quantity, price, date }]);
+    setTradeInput({ ticker: "", action: "buy", quantity: "", price: "", date });
+  };
+
+  const removeTrade = (idx) => setTrades(prev => prev.filter((_, i) => i !== idx));
+
+  const runAutopsy = async () => {
+    if (!trades.length) {
+      setTradeError("Add at least one buy and one sell trade.");
+      return;
+    }
+    setTradeError("");
+    setAutopsyLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/portfolio-autopsy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trades }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.detail || `HTTP ${res.status}`);
+      setAutopsyResult(data);
+    } catch (err) {
+      setAutopsyResult({ error: `Portfolio autopsy failed: ${err.message}` });
+    }
+    setAutopsyLoading(false);
+  };
 
   const runAnalysis = async () => {
     if (!holdings.length) return;
@@ -55,12 +133,13 @@ export default function PortfolioPage({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 8 }}>
         <div>
           <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 22, color: C.text }}>Portfolio Intelligence</div>
-          <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec, marginTop: 2 }}>Add your holdings → get risk alerts + AI brief</div>
+          <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec, marginTop: 2 }}>Risk alerts, earnings briefs, FIFO trade autopsies, and quick ticker scans</div>
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          {[["analyze", "Full Analysis"], ["simple", "Quick"]].map(([id, label]) => (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {modeOptions.map(({ id, label, Icon }) => (
             <button key={id} onClick={() => setPortMode(id)}
-              style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${portMode === id ? C.accent : C.border}`, background: portMode === id ? `${C.accent}18` : "transparent", color: portMode === id ? C.accent : C.textSec, fontFamily: "'DM Sans',sans-serif", fontSize: 12, cursor: "pointer" }}>
+              style={{ minHeight: 34, padding: "0 12px", borderRadius: 8, border: `1px solid ${portMode === id ? C.accent : C.border}`, background: portMode === id ? `${C.accent}18` : "transparent", color: portMode === id ? C.accent : C.textSec, fontFamily: "'DM Sans',sans-serif", fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}>
+              <Icon size={14} />
               {label}
             </button>
           ))}
@@ -238,6 +317,204 @@ export default function PortfolioPage({
                             <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: C.textTer }}>
                               {item.quantity?.toLocaleString()} shares
                             </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── EARNINGS INTELLIGENCE MODE ── */}
+      {portMode === "earnings" && (
+        <>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="label" style={{ marginBottom: 12 }}>Earnings Intelligence</div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr auto", gap: 8, alignItems: "end" }}>
+              <div>
+                <div style={labelStyle}>Ticker</div>
+                <TickerAutocomplete className="input-box" value={earningsTicker}
+                  onChange={e => setEarningsTicker(e.target.value.toUpperCase())}
+                  onSelect={t => { setEarningsTicker(t); runEarningsBrief(t); }}
+                  onKeyDown={e => e.key === "Enter" && runEarningsBrief()}
+                  placeholder="e.g. TCS.NS or AAPL" />
+              </div>
+              <button className="btn-gold" style={{ minHeight: 40, padding: "0 16px" }} disabled={earningsLoading} onClick={() => runEarningsBrief()}>
+                {earningsLoading ? "Building brief..." : "Generate Brief"}
+              </button>
+            </div>
+            {holdings.length > 0 && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+                {holdings.slice(0, 8).map(h => (
+                  <button key={h.ticker} className="btn-ghost" style={{ fontSize: 11, padding: "5px 9px" }} onClick={() => runEarningsBrief(h.ticker)}>
+                    {h.ticker}
+                  </button>
+                ))}
+              </div>
+            )}
+            {earningsError && <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.neg, marginTop: 8 }}>{earningsError}</div>}
+          </div>
+
+          {!earningsBrief && !earningsError && (
+            <EmptyState Icon={CalendarClock} title="No earnings brief yet." subtitle="Choose a holding or enter a ticker to generate a sell-side style pre-earnings note." />
+          )}
+
+          {earningsBrief && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
+                {[
+                  ["Ticker", earningsBrief.ticker],
+                  ["Next Date", earningsBrief.next_earnings_date || "TBD"],
+                  ["EPS Est.", earningsBrief.eps_estimate ?? "N/A"],
+                  ["Last EPS", earningsBrief.eps_actual ?? "N/A"],
+                  ["Forward P/E", earningsBrief.forward_pe ?? "N/A"],
+                ].map(([label, value]) => (
+                  <div key={label} className="card">
+                    <div style={metricLabelStyle}>{label}</div>
+                    <div style={{ fontFamily: label === "Ticker" ? "'JetBrains Mono',monospace" : "'DM Sans',sans-serif", fontSize: 16, color: C.text, overflowWrap: "anywhere" }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="card card-accent">
+                <div className="label" style={{ marginBottom: 10 }}>Pre-earnings Research Note</div>
+                <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: C.text, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{earningsBrief.brief}</div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── PORTFOLIO AUTOPSY MODE ── */}
+      {portMode === "autopsy" && (
+        <>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="label" style={{ marginBottom: 12 }}>Trade History</div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1.5fr 0.8fr 0.8fr 0.9fr 1fr auto", gap: 8, alignItems: "end" }}>
+              <div>
+                <div style={labelStyle}>Ticker</div>
+                <TickerAutocomplete className="input-box" value={tradeInput.ticker}
+                  onChange={e => setTradeInput(p => ({ ...p, ticker: e.target.value.toUpperCase() }))}
+                  onSelect={t => setTradeInput(p => ({ ...p, ticker: t }))}
+                  placeholder="INFY.NS" />
+              </div>
+              <div>
+                <div style={labelStyle}>Action</div>
+                <select className="input-box" value={tradeInput.action} onChange={e => setTradeInput(p => ({ ...p, action: e.target.value }))}>
+                  <option value="buy">Buy</option>
+                  <option value="sell">Sell</option>
+                </select>
+              </div>
+              <div>
+                <div style={labelStyle}>Qty</div>
+                <input className="input-box" type="number" min="1" value={tradeInput.quantity} onChange={e => setTradeInput(p => ({ ...p, quantity: e.target.value }))} placeholder="50" />
+              </div>
+              <div>
+                <div style={labelStyle}>Price</div>
+                <input className="input-box" type="number" min="0.01" step="0.01" value={tradeInput.price} onChange={e => setTradeInput(p => ({ ...p, price: e.target.value }))} placeholder="1500" />
+              </div>
+              <div>
+                <div style={labelStyle}>Date</div>
+                <input className="input-box" type="date" value={tradeInput.date} onChange={e => setTradeInput(p => ({ ...p, date: e.target.value }))} />
+              </div>
+              <button className="btn-gold" style={{ height: 40, padding: "0 14px" }} onClick={addTrade}>
+                <Plus size={16} />
+              </button>
+            </div>
+            {tradeError && <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.neg, marginTop: 8 }}>{tradeError}</div>}
+          </div>
+
+          {trades.length > 0 && (
+            <>
+              <div className="card port-table-scroll" style={{ marginBottom: 16, padding: 0, overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                      {["Date", "Ticker", "Side", "Qty", "Price", ""].map(h => (
+                        <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: C.textSec, fontWeight: 500 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...trades].sort((a, b) => a.date.localeCompare(b.date)).map((t, idx) => {
+                      const originalIdx = trades.indexOf(t);
+                      const isBuy = t.action === "buy";
+                      return (
+                        <tr key={`${t.ticker}-${t.date}-${idx}`} style={{ borderBottom: idx < trades.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                          <td style={{ padding: "10px 16px", fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec }}>{t.date}</td>
+                          <td style={{ padding: "10px 16px", fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.text }}>{t.ticker}</td>
+                          <td style={{ padding: "10px 16px" }}><span className={isBuy ? "pill-pos" : "pill-neg"} style={{ fontSize: 10 }}>{t.action.toUpperCase()}</span></td>
+                          <td style={{ padding: "10px 16px", fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec }}>{t.quantity.toLocaleString()}</td>
+                          <td style={{ padding: "10px 16px", fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.textSec }}>₹{t.price.toLocaleString()}</td>
+                          <td style={{ padding: "10px 16px", textAlign: "right" }}>
+                            <button onClick={() => removeTrade(originalIdx)} title="Remove trade" style={{ background: "none", border: "none", color: C.textTer, cursor: "pointer", padding: 4, display: "inline-flex" }}>
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <button className="btn-gold" style={{ width: "100%", marginBottom: 24 }} disabled={autopsyLoading} onClick={runAutopsy}>
+                {autopsyLoading ? "Matching FIFO trades..." : `Run Autopsy on ${trades.length} Trade${trades.length > 1 ? "s" : ""}`}
+              </button>
+            </>
+          )}
+
+          {trades.length === 0 && !autopsyResult && (
+            <EmptyState Icon={Stethoscope} title="No trades added." subtitle="Add buys and sells to reconstruct realized P&L and get an honest post-mortem." />
+          )}
+
+          {autopsyResult?.error && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: C.neg }}>{autopsyResult.error}</span>
+              <button className="btn-ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={runAutopsy}>Retry</button>
+            </div>
+          )}
+
+          {autopsyResult && !autopsyResult.error && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10 }}>
+                {[
+                  ["Realized P&L", `₹${autopsyResult.total_pnl?.toLocaleString() ?? 0}`],
+                  ["Matched Trades", autopsyResult.trade_count ?? 0],
+                  ["Winners", autopsyResult.winners ?? 0],
+                  ["Losers", autopsyResult.losers ?? 0],
+                ].map(([label, value]) => (
+                  <div key={label} className="card">
+                    <div style={metricLabelStyle}>{label}</div>
+                    <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: label === "Realized P&L" ? ((autopsyResult.total_pnl ?? 0) >= 0 ? C.pos : C.neg) : C.text }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+              {autopsyResult.narrative && (
+                <div className="card card-accent">
+                  <div className="label" style={{ marginBottom: 10 }}>Trade Post-mortem</div>
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: C.text, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{autopsyResult.narrative}</div>
+                </div>
+              )}
+              {autopsyResult.realized_trades?.length > 0 && (
+                <>
+                  <div className="label">FIFO Matches</div>
+                  <div className="port-grid">
+                    {autopsyResult.realized_trades.slice(0, 12).map((r, idx) => {
+                      const up = (r.pnl ?? 0) >= 0;
+                      return (
+                        <div key={`${r.ticker}-${idx}`} className={`port-mini-card stagger-${Math.min(idx + 1, 6)}`}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.textSec }}>{r.ticker}</div>
+                            <span className={up ? "pill-pos" : "pill-neg"} style={{ fontSize: 10 }}>{up ? "+" : ""}{r.pnl_pct?.toFixed(2)}%</span>
+                          </div>
+                          <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: up ? C.pos : C.neg, marginTop: 8 }}>
+                            {up ? "+" : ""}₹{r.pnl?.toLocaleString()}
+                          </div>
+                          <div style={{ marginTop: 6, fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: C.textTer }}>
+                            {r.buy_date} → {r.sell_date} · {r.quantity} shares
                           </div>
                         </div>
                       );
