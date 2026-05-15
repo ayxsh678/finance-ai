@@ -50,3 +50,6 @@ desktop.ini
 # ── Logs ───────────────────────────────────────────────
 *.log
 logs/
+/generated/prisma
+
+/generated/prisma
